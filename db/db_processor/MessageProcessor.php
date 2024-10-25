@@ -43,7 +43,7 @@ class MessageProcessor
                 $this->processorRegistrationRequest($request);
                 break;
 
-            case 'validate_session':
+            case 'validate_request':
                 $this->processorSessionValidation($request);
                 break;
 
@@ -290,8 +290,21 @@ class MessageProcessor
      */
     private function processorSessionValidation($request)
     {
-       // Retrieve the session token from the payload
-        $sessionToken = $request['session_token'];
+       // Retrieve the token from the payload
+        if (isset($request['token'])) {
+            $sessionToken = $request['token'];
+            // Print the token for debugging
+            echo "Token received from request: " . $sessionToken . "\n";
+        } else {
+            // Handle case where token is missing
+            echo "No token found in request.\n";
+            $this->response = [
+                'type' => 'SessionValidationResponse',
+                'status' => 'error',
+                'message' => "Token missing from request"
+            ];
+            return;
+        }
 
         // Connect to the database
         $db = connectDB();
@@ -313,13 +326,16 @@ class MessageProcessor
         if ($sessionData['timestamp'] > $currentTimestamp) {
             /*Session is valid and not expired
             Now now return data from db to validate/return session*/
+
+            // Ensure 'session_token' and 'email' are correct in the DB result
+            echo "Session token from DB: " . $sessionData['session_token'] . "\n";
             
             $this->response = [
                 'type' => 'SessionValidationResponse',
                 'status' => 'success',
                 'message' => "Session is valid for email: " . $sessionData['email'],
                 'email' => $sessionData['email'],
-                'session_token' => $sessionData['token'],
+                'session_token' => $sessionData['session_token'],
                 'expiration_timestamp' => $sessionData['timestamp']
             ];
         } else {
@@ -446,9 +462,29 @@ class MessageProcessor
         $message = $request['msg'];
         $timestamp = $request['timestamp'];
 
+        // Query to get user_id based on the username
+        $stmt = $db->prepare('SELECT user_id FROM users WHERE email = ?');
+        // Assuming username is the email in your case; adjust accordingly if necessary
+        $stmt->bind_param('s', $username); // Replace with the actual field you're querying for the username
+        $stmt->execute();
+        $result = $stmt->get_result();
 
-        // Prepare and execute insert query
-        $insertQuery = $db->prepare('INSERT INTO chat_messages (username, message, timestamp) VALUES (?, ?, ?)');
+        if ($result->num_rows === 0) {
+            $this->response = [
+                'type' => 'ChatResponse',
+                'status' => 'error',
+                'message' => 'User not found.'
+            ];
+            $stmt->close();
+            $db->close();
+            return;
+        }
+
+        $row = $result->fetch_assoc();
+        $user_id = $row['user_id'];
+
+        // Prepare and execute insert query with user_id
+        $insertQuery = $db->prepare('INSERT INTO chat_messages (user_id, username, message, created_at) VALUES (?, ?, ?, ?)');
         if (!$insertQuery) {
             $this->response = [
                 'type' => 'ChatResponse',
@@ -458,7 +494,7 @@ class MessageProcessor
             return;
         }
 
-        $insertQuery->bind_param("sss", $username, $message, $timestamp);
+        $insertQuery->bind_param("isss", $user_id, $username, $message, $timestamp);
         if ($insertQuery->execute()) {
             $this->response = [
                 'type' => 'ChatResponse',
@@ -502,7 +538,7 @@ class MessageProcessor
         echo "Database connection successful.\n";
     
         // Fetch the most recent X messages, ordered by timestamp
-        $stmt = $db->prepare("SELECT uname, msg, timestamp FROM chat_messages ORDER BY timestamp DESC LIMIT ?");
+        $stmt = $db->prepare("SELECT username, message, created_at FROM chat_messages ORDER BY created_at DESC LIMIT ?");
         $stmt->bind_param('i', $limit);
         $stmt->execute();
         $result = $stmt->get_result();
