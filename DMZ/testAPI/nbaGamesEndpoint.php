@@ -6,20 +6,14 @@ require_once('rabbitMQLib.inc');
 
 $client = new rabbitMQClient("testRabbitMQ.ini","API");
 
-
-function get_previous_weekday() {
-    $today = new DateTime();
-    $today->modify('-1 day'); // Start by going back one day
-
-    // Loop to find the last weekday (excluding weekends)
-    while (in_array($today->format('N'), [6, 7])) { // 6=Saturday, 7=Sunday
-        $today->modify('-1 day');
-    }
-
-    return $today->format('Y-m-d');
+// Function to get the current day's date
+function get_current_day() {
+    return date('Y-m-d'); // Get today's date in the correct format
 }
 
-$game_date = get_previous_weekday(); // Get the previous valid weekday for the API call
+$game_date = get_current_day(); // Use today's date for the API call
+
+echo "$game_date \n"; //prints out today's date
 
 $curl = curl_init();
 curl_setopt_array($curl, [
@@ -60,4 +54,5 @@ if ($err) {
     echo(print_r($message, true)); //debug statement
     $client->publish(json_encode($message)); // Send as JSON string
 }
+
 ?>
