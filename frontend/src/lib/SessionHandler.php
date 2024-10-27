@@ -13,7 +13,7 @@ abstract class SessionHandler {
     /**
      * The session object obtained from DB-side logic
      */
-    private static \nba\shared\Session $session;
+    private \nba\shared\Session $session;
 
     /** Function to get session object. Checks server-side first,
      * then sends request to DB via Rabbit.
@@ -21,9 +21,9 @@ abstract class SessionHandler {
      * @return false OR $session object
      */
     public static function getSession(){
-
+        $cookieValue = $_COOKIE['session_cookie'];
         //If no session exists, try to retrieve one and put in a cookie
-        if(!isset(static::$session)) {
+        if(!isset($session)) {
             $cookieName = 'session_cookie';
 
         //check for session cookie being set
@@ -43,22 +43,23 @@ abstract class SessionHandler {
         $request = new \nba\shared\messaging\frontend\SessionValidateRequest('validate_request', $cookieValue);
         $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../rabbit/host.ini', "Authentication");
         $response = $rabbitClient->send_request(json_encode($request), 'application/json');
-        $responseData = json_decode($response, true);
+        //$responseData = json_decode($response, true);
+        $responseData = $response;
         error_log("response for validation request received: ". print_r($responseData, true));
         if($responseData['type'] === 'SessionValidationResponse' && $responseData['status'] === 'success') {
             /*log success message and create session object*/
             error_log($responseData['message']);
-            static::$session = new \nba\shared\Session(
-                $responseData['token'],
-                $responseData['expiration'],
+            $session = new \nba\shared\Session(
+                $_COOKIE['session_cookie'],
+                $responseData['expiration_timestamp'],
                 $responseData['email']
             );
-                return static::$session;
+                return $session;
             } else {
                 return false;
             }
         //return session if already set
-        return static::$session;
+        return $session;
         }
 
 
@@ -81,7 +82,7 @@ abstract class SessionHandler {
         $response = $rabbitClient->send_request(json_encode($request), 'application/json');
 
         if($response['type'] === 'login_response' &&  $response['result'] == true) {
-            static::$session = new \nba\shared\Session(
+            $session = new \nba\shared\Session(
                 $response['session_token'],
                 $response['expiration_timestamp'],
                 $response['email']
@@ -91,7 +92,7 @@ abstract class SessionHandler {
         } else {
             return false;
         }
-                if (isset(static::$session)){
+                if (isset($session)){
                     //error_log("session is set   ". print_r(static::$session,true));
                     if (headers_sent()) {
                         error_log('Headers already sent.');
@@ -99,8 +100,8 @@ abstract class SessionHandler {
                         //error_log('setting cookie');
                     setcookie(
                         $cookieName,
-                        static::$session->getSessionToken(),
-                        (static::$session->getExpirationTimestamp()),
+                        $session->getSessionToken(),
+                        ($session->getExpirationTimestamp()),
                         '/',
                         '',
                         false,
@@ -114,7 +115,7 @@ abstract class SessionHandler {
                     ob_flush();
                     flush();
 
-                    return static::$session;
+                    return $session;
                 } else {
                     return false;
         }

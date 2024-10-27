@@ -4,8 +4,6 @@ namespace nba\src\home\includes;
 
 abstract class Home {
 
-    private false|\nba\shared\Session $session;
-
     /**
     * Displays user's homepage.
     * @return void
@@ -21,19 +19,27 @@ abstract class Home {
         <?php 
         echo \nba\src\lib\components\Head::displayHead();
         echo \nba\src\lib\components\Nav::displayNav();
-        $session = \nba\src\lib\SessionHandler::getSession();
-        error_log("session" . $session . print_r($session, true));
+        //$session = \nba\src\lib\SessionHandler::getSession();
+
+            //test code
+            $token = \uniqid();
+            $timestamp = time() + 60000;
+            $session =  new \nba\shared\Session($token, $timestamp, 'jane@test.com');
+            //end test code
+
+        error_log("session ". print_r($session, true));
         if(!$session){
             header('Location: /login');
             exit();
         } else {
-            $fullEmail = htmlspecialchars($session->getEmail(), ENT_QUOTES, 'UTF-8');
-            $atPos = strpos($fullEmail, '@');
-            if ($atPos !== false) {
-                $uname = substr($fullEmail, 0, $atPos);
-            } else {
-                $uname = $fullEmail;
-            }
+            $uname = htmlspecialchars($session->getEmail(), ENT_QUOTES, 'UTF-8');
+            // $fullEmail = htmlspecialchars($session->getEmail(), ENT_QUOTES, 'UTF-8');
+            // $atPos = strpos($fullEmail, '@');
+            // if ($atPos !== false) {
+            //     $uname = substr($fullEmail, 0, $atPos);
+            // } else {
+            //     $uname = $fullEmail;
+            // }
         }
         ?>
         <script>
@@ -48,7 +54,7 @@ abstract class Home {
         <body>
         <div class="relative flex min-h-screen flex-col 
         justify-center overflow-hidden bg-slate-200 px-12 py-6 sm:py-32 lg:py-14">
-            <h1 class="text-lg lg:text-2xl font-bold">HOME</h1>
+            <h1 class="text-lg lg:text-2xl font-bold"> User <?php echo $session->getEmail(); ?>'s HOME PAGE</h1>
             <div class="text-lg lg:text-3xl space-y-6 py-8 leading-7 text-gray-600">
             <table class="table-auto">
                 <thead>
@@ -71,11 +77,12 @@ abstract class Home {
             <?php
             require __DIR__.'/../../lib/chat/chatFront.php';
             ?>
+            <script src="../../lib/chat/chat.js"></script>
             
             <a href="../../logout/" class="hover:text-3xl pb-20"> Logout</a>
         </body>
     </html>
-    <script src="chat.js"></script>
+    
     <?php
     } //end of displayLogin()
     

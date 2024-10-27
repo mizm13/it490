@@ -1,6 +1,6 @@
 <?php
 namespace nba\rabbit;
-//require_once('get_host_info.php');
+require_once('RabbitHostInfo.php');
 
 /**
  * Professor's client class. The client that sends messages to rabbitMQ.
@@ -24,7 +24,7 @@ class RabbitMQClient
 
 	function __construct($machine, $server)
 	{
-		$this->machine 		  = \nba\rabbit\RabbitHostInfo::getHostInfo(array($machine));
+		$this->machine 		  = RabbitHostInfo::getHostInfo(array($machine));
 		$this->BROKER_HOST    = $this->machine[$server]["BROKER_HOST"];
 		$this->BROKER_PORT    = $this->machine[$server]["BROKER_PORT"];
 		$this->USER     	  = $this->machine[$server]["USER"];

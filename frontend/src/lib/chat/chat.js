@@ -10,8 +10,10 @@ document.addEventListener("DOMContentLoaded", function() {
 
 /*Function to fetch chat history from the server*/
 function fetchChatHistory() {
-    fetch('../../api/fetch_chat_history.php')  // Relative path to the API
+    fetch('../../api/fetch_chat_history.php')
         .then(response => {
+            console.log("trying to get a response from history fetch");  // Relative path to the API
+            console.log(response.json);
             if (!response.ok) {
                 throw new Error('Network response was not ok');
             }
@@ -45,7 +47,10 @@ function fetchChatHistory() {
 // Function to send a new message
 document.getElementById('sendMessage').addEventListener('click', function() {
     const uname = document.getElementById('uname').value;  // User's name or ID
-    const msg = document.getElementById('msg').value;      // Message content
+    const msg = document.getElementById('msg').value;  
+    console.log("Error sending on click");
+
+    //const email = window.sessionUser.email;
 
     if (msg.trim() === '') {
         alert('Message cannot be empty!');
@@ -55,11 +60,12 @@ document.getElementById('sendMessage').addEventListener('click', function() {
     const messageData = {
         uname: uname,
         msg: msg,
+        //email: email,
         timestamp: new Date().toISOString()  // Add a timestamp to the message
     };
 
     // Send the message via a POST request
-    fetch('../api/send_chat_message.php', {
+    fetch('../../api/send_chat_message.php', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
