@@ -28,5 +28,5 @@
 5 21 * * 2-6 /bin/bash /home/mizm13/it490/DMZ/testAPI/extract_game_ids.sh
 #
 # Fetch player stats for each game ID at 9:15 PM from Tuesday to Saturday
-15 21 * * 2-6 /usr/bin/php /home/mizm13/it490/DMZ/testAPI/nbaPlayerStatsEndpoint.php
+10 21 * * 2-6 /usr/bin/php /home/mizm13/it490/DMZ/testAPI/nbaPlayerStatsEndpoint.php
 
