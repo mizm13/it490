@@ -21,12 +21,12 @@
 # For more information see the manual pages of crontab(5) and cron(8)
 # 
 # m h  dom mon dow   command
-# Fetch NBA games for the previous weekday at 9 PM from Tuesday to Saturday
-0 21 * * 2-6 /usr/bin/php /home/mizm13/it490/DMZ/testAPI/nbaGamesEndpoint.php
+# Fetch NBA games for the previous weekday at 9 PM everyday 
+0 21 * * * /usr/bin/php /home/mizm13/it490/DMZ/testAPI/nbaGamesEndpoint.php
 #
-# Extract game IDs from the fetched games JSON file at 9:05 PM from Tuesday to Saturday
-5 21 * * 2-6 /bin/bash /home/mizm13/it490/DMZ/testAPI/extract_game_ids.sh
+# Extract game IDs from the fetched games JSON file at 9:05 PM everyday 
+5 21 * * * /bin/bash /home/mizm13/it490/DMZ/testAPI/extract_game_ids.sh
 #
-# Fetch player stats for each game ID at 9:15 PM from Tuesday to Saturday
-10 21 * * 2-6 /usr/bin/php /home/mizm13/it490/DMZ/testAPI/nbaPlayerStatsEndpoint.php
+# Fetch player stats for each game ID at 9:10 PM everyday 
+10 21 * * * /usr/bin/php /home/mizm13/it490/DMZ/testAPI/nbaPlayerStatsEndpoint.php
 
