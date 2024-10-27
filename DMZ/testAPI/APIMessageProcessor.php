@@ -157,50 +157,62 @@ private function processAPIPlayerStatsRequest($request)
     // Create a database connection
     $conn = connectDb();  // Reuse existing database connection
 
-    // Get the player ID from parameters
-    $playerId = $request['data']['parameters']['id'] ?? null;
-    if (!$playerId) {
-        echo "Error: Player ID not found in parameters.\n";
+    // Get the game ID from parameters
+    $gameId = $request['data']['parameters']['game'] ?? null;
+    if (!$gameId) {
+        echo "Error: Game ID not found in parameters.\n";
         return;
     }
-
-    // Get the season from parameters
-    $season = $request['data']['parameters']['season'] ?? null;
-    if (!$season) {
-        echo "Error: Season not found in parameters.\n";
-        return;
-    }
-
-    // Prepare the SQL statement for inserting player stats
-    $stmt = $conn->prepare("INSERT INTO player_stats (player_id, season, game_id, points, rebounds, assists, blocks, steals) 
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                            ON DUPLICATE KEY UPDATE 
-                            season = ?, game_id = ?, points = ?, rebounds = ?, assists = ?, blocks = ?, steals = ?");
     
     // Loop through the player stats data
     foreach ($data as $stat) {
-        // Get the game ID from the response
-        $gameId = $stat['game']['id'] ?? null; // Default to NULL if not available
+
+        $playerId = $stat['player']['id'] ?? null; // Extract player ID
+        if (!$playerId) {
+            echo "Error: Player ID not found in stats data.\n";
+            continue;
+        }
+
+        // Check if player exists in the players table
+        $playerExistsQuery = $conn->prepare("SELECT COUNT(*) FROM players WHERE player_id = ?");
+        $playerExistsQuery->bind_param("i", $playerId);
+        $playerExistsQuery->execute();
+        $playerExistsQuery->bind_result($playerCount);
+        $playerExistsQuery->fetch();
+        $playerExistsQuery->close();
+
+        if ($playerCount === 0) {
+            echo "Error: Player ID $playerId does not exist in players table.\n";
+            continue; // Skip this iteration if the player does not exist
+        }
+        // Get the game ID and stats from the response
         $points = isset($stat['points']) ? (int)$stat['points'] : null; // Default to NULL if not available
         $rebounds = isset($stat['totReb']) ? (int)$stat['totReb'] : null; // Extract total rebounds
         $assists = isset($stat['assists']) ? (int)$stat['assists'] : null; // Default to NULL if not available
         $blocks = isset($stat['blocks']) ? (int)$stat['blocks'] : null; // Default to NULL if not available
         $steals = isset($stat['steals']) ? (int)$stat['steals'] : null; // Default to NULL if not available
 
+        // Extract team ID from the stat data (assuming you have this in your API response)
+        $teamId = $stat['team']['id'] ?? null;
+
+        // Prepare the SQL statement for inserting player stats
+        $stmt = $conn->prepare("INSERT INTO player_stats (player_id, game_id, team_id, points, rebounds, assists, blocks, steals) 
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                ON DUPLICATE KEY UPDATE 
+                                points = VALUES(points),
+                                rebounds = VALUES(rebounds),
+                                assists = VALUES(assists),
+                                blocks = VALUES(blocks),
+                                steals = VALUES(steals);
+                                ");
+
     
         // Bind parameters
         $stmt->bind_param(
-            "isiiiiiisiiiiii",  // Updated parameter types: i = integer, s = string
+            "iiiiiiii",  // Updated parameter types: i = integer, s = string
             $playerId,
-            $season,
             $gameId,
-            $points,
-            $rebounds,
-            $assists,
-            $blocks,
-            $steals,
-            $season,
-            $gameId,
+            $teamId,
             $points,
             $rebounds,
             $assists,

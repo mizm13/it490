@@ -538,13 +538,47 @@ class MessageProcessor
         echo "Database connection successful.\n";
     
         // Fetch the most recent X messages, ordered by timestamp
+        echo "Preparing the SQL statement...\n";
         $stmt = $db->prepare("SELECT username, message, created_at FROM chat_messages ORDER BY created_at DESC LIMIT ?");
-        $stmt->bind_param('i', $limit);
-        $stmt->execute();
+        if (!$stmt) {
+            echo "Error preparing statement: " . $db->error . "\n";
+            $db->close();
+            return;
+        }
+        echo "SQL statement prepared successfully.\n";
+
+        echo "Binding parameters...\n";
+        if (!$stmt->bind_param('i', $limit)) {
+            echo "Error binding parameters: " . $stmt->error . "\n";
+            $stmt->close();
+            $db->close();
+            return;
+        }
+        echo "Parameters bound successfully.\n";
+
+        echo "Executing the SQL statement...\n";
+        if (!$stmt->execute()) {
+            echo "Error executing statement: " . $stmt->error . "\n";
+            $stmt->close();
+            $db->close();
+            return;
+        }
+        echo "SQL statement executed successfully.\n";
+
+        // Retrieve the result set
+        echo "Retrieving the results...\n";
         $result = $stmt->get_result();
+        if (!$result) {
+            echo "Error retrieving results: " . $stmt->error . "\n";
+            $stmt->close();
+            $db->close();
+            return;
+        }
+        echo "Results retrieved successfully.\n";
     
         $chatHistory = [];
         while ($row = $result->fetch_assoc()) {
+            echo "Fetched message from " . $row['username'] . " at " . $row['created_at'] . ": " . $row['message'] . "\n";
             $chatHistory[] = $row;  // Add each row to the chat history array
         }
     
@@ -552,7 +586,23 @@ class MessageProcessor
         $db->close();
 
         //we flip the array to make the oldest messages go first.
-        return array_reverse($chatHistory);
+        echo "Reversing the chat history order...\n";
+        $chatHistory = array_reverse($chatHistory);
+
+        // Prepare the response to send back to the frontend
+        $this->response = [
+            'type' => 'ChatHistoryResponse',
+            'status' => 'success',
+            'data' => $chatHistory
+        ];
+
+        // Print the entire chat history
+        echo "\n--- Chat History ---\n";
+        foreach ($chatHistory as $entry) {
+            echo "[" . $entry['created_at'] . "] " . $entry['username'] . ": " . $entry['message'] . "\n";
+        }
+
+        
     }
     
 
