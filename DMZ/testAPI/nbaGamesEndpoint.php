@@ -1,5 +1,7 @@
 #!/usr/bin/php
 <?php
+date_default_timezone_set('America/New_York'); 
+
 require_once('path.inc');
 require_once('get_host_info.inc');
 require_once('rabbitMQLib.inc');
