@@ -50,6 +50,22 @@ class MessageProcessor
             case 'admin_check_request':
                 $this->processorAdminCheckRequest($request);
                 break;
+            
+            // case 'commisioner_check_request':
+            //     $this->processorCommisionerCheck($request);
+            //     break;
+
+            case 'add_user_request':
+                $this->processorAddUser($request);
+                break;
+
+            case 'delete_user_request':
+                $this->processorDeleteUser($request);
+                break;
+
+            case 'create_league_request':
+                $this->processorLeagueCreate($request);
+                break;
 
             case 'search_request':
                 $this->processorSearchRequest($request);
@@ -60,9 +76,20 @@ class MessageProcessor
                 break;
 
             case 'chat_history':
-                $this->processorChatHistory($request);
+                $this->processorChatHistory(10);
                 break;
 
+            case 'get_draft_players':
+                $this->processorPlayers2Draft($request);
+                break;
+
+            case 'add_player_request':
+                $this->processorAddPlayer($request);
+                break;
+
+            case 'remove_player_request':
+                $this->processorRemovePlayer($request);
+                break;
             default:
                 $this->responseError = ['status' => 'error', 'message' => 'Unknown request type'];
                 echo "Unknown request type: {$request['type']}\n";
@@ -601,11 +628,207 @@ class MessageProcessor
         foreach ($chatHistory as $entry) {
             echo "[" . $entry['created_at'] . "] " . $entry['username'] . ": " . $entry['message'] . "\n";
         }
-
-        
     }
-    
+        /**
+         * Function to populate draft page with all available players.
+         *
+         * @param string $league the name of the league that user is drafting in
+         * @return mixed $draftablePlayers an array of all undrafted players.
+         */        
+        function processorPlayers2Draft($request) {
+        
+            // Connect to the database
+        echo "Connecting to the database...\n";
+        $db = connectDB();
+        if ($db === null) {
+            $this->response = [
+                'type' => 'Players2DraftResponse',
+                'status' => 'error',
+                'message' => 'Database connection failed.'
+            ];
+            return;    
+        }     
+        echo "Database connection successful.\n";  
+        
+        /*TODO: might need to change this as db tables change*/
+        $stmt = $db->prepare("SELECT player_id, name, team_id from players p 
+        LEFT JOIN leagues l ON p.player_id = l.player_id WHERE l.player_id is NULL
+         and p.player_id NOT IN (SELECT player_id from leagues where league_name = ?");
 
+        if (!$stmt) {
+            echo "Error preparing statement: " . $db->error . "\n";
+            $db->close();
+            return;
+        }
+        echo "SQL statement prepared successfully.\n";
+
+
+        echo "Binding parameters...\n";
+        if (!$stmt->bind_param('s', $league)) {
+            echo "Error binding parameters: " . $stmt->error . "\n";
+            $stmt->close();
+            $db->close();
+            return;
+        }
+        echo "Parameters bound successfully.\n";
+
+        echo "Executing the SQL statement...\n";
+        if (!$stmt->execute()) {
+            echo "Error executing statement: " . $stmt->error . "\n";
+            $stmt->close();
+            $db->close();
+            return;
+        }
+        echo "SQL statement executed successfully.\n";
+
+        // Retrieve the result set
+        echo "Retrieving the results...\n";
+        $result = $stmt->get_result();
+        if (!$result) {
+            echo "Error retrieving results: " . $stmt->error . "\n";
+            $stmt->close();
+            $db->close();
+            return;
+        }
+        $stmt->close();
+        $db->close();
+        echo "Results retrieved successfully.\n";
+        $availablePlayers = [];
+        while ($row = $result->fetch_assoc()) {
+            $availablePlayers[] = $row;  
+        }
+        $this->response = [
+            'type' => 'draft_players_response',
+            'data' => $availablePlayers
+        ];
+    }
+
+    /**
+     * Undocumented function
+     *
+     * @return void
+     */
+    public function processorAddPlayer($request){
+
+        // Connect to the database
+        echo "Connecting to the database...\n";
+        $db = connectDB();
+        if ($db === null) {
+            $this->response = [
+                'type' => 'player_add_response',
+                'status' => 'error',
+                'message' => 'Database connection failed.'
+            ];
+            return;
+        }
+        echo "Database connection successful.\n";
+
+        echo (print_r($request));
+        if(isset($request['player_name']) && isset($request['team_name']) && isset($request['league_name'])) {
+            $player = $request['player_name'];
+            $team = $request['team_name'];
+            $league = $request['league_name'];
+            echo "Set player add data\n";
+        } else {
+            echo "Failed to set player add data.\n";
+            $this->response = [
+                'type' => 'player_add_response',
+                'status' => 'error',
+                'message' => 'Missing data to handle insert.'
+            ];
+            return;
+        }
+
+        // Prepare the SQL statement to check credentials
+        $stmt = $db->prepare('INSERT INTO fantasy_team_players (player_id, team_id, league_id) VALUES (?, ?, ?)');
+        if (!$stmt) {
+            echo "Failed to prepare the insert query: " . $db->error . "\n";
+            return;
+        }
+        $stmt->bind_param("iii", $player, $team, $league);
+        if ($stmt->execute()){
+                echo "Player added to team successfully.\n";
+                // Prepare successful response
+                $this->response = [
+                    'type' => 'player_add_response',
+                    'result' => 'true',
+                    'message' => "Player $player added successfully to team $team"
+                    ];
+            } else {
+                echo "Failed to insert session information: " . $db->error . "\n";
+                // Handle insert failure
+                $this->response = [
+                    'type' => 'player_add_response',
+                    'result' => 'false',
+                    'message' => "Error, Player $player was not added to team $team."
+                ];
+            }
+        $stmt->close();
+        $db->close();
+    }
+       /**
+     * Undocumented function
+     *
+     * @return void
+     */
+    public function processorRemovePlayer($request){
+
+        // Connect to the database
+        echo "Connecting to the database...\n";
+        $db = connectDB();
+        if ($db === null) {
+            $this->response = [
+                'type' => 'player_add_response',
+                'status' => 'error',
+                'message' => 'Database connection failed.'
+            ];
+            return;
+        }
+        echo "Database connection successful.\n";
+
+        echo (print_r($request));
+        if(isset($request['player_name']) && isset($request['team_name']) && isset($request['league_name'])) {
+            $player = $request['player_name'];
+            $team = $request['team_name'];
+            $league = $request['league_name'];
+            echo "Set player add data\n";
+        } else {
+            echo "Failed to set player add data.\n";
+            $this->response = [
+                'type' => 'player_add_response',
+                'status' => 'error',
+                'message' => 'Missing data to handle insert.'
+            ];
+            return;
+        }
+
+        // Prepare the SQL statement to check credentials
+        $stmt = $db->prepare('INSERT INTO fantasy_team_players (player_id, team_id, league_id) VALUES (?, ?, ?)');
+        if (!$stmt) {
+            echo "Failed to prepare the insert query: " . $db->error . "\n";
+            return;
+        }
+        $stmt->bind_param("iii", $player, $team, $league);
+        if ($stmt->execute()){
+                echo "Player added to team successfully.\n";
+                // Prepare successful response
+                $this->response = [
+                    'type' => 'player_add_response',
+                    'result' => 'true',
+                    'message' => "Player $player added successfully to team $team"
+                    ];
+            } else {
+                echo "Failed to insert session information: " . $db->error . "\n";
+                // Handle insert failure
+                $this->response = [
+                    'type' => 'player_add_response',
+                    'result' => 'false',
+                    'message' => "Error, Player $player was not added to team $team."
+                ];
+            }
+        $stmt->close();
+        $db->close();
+    }
     /**
      * Get the response to send back to the client.
      *
