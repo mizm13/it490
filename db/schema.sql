@@ -75,9 +75,67 @@ CREATE TABLE games (
 );
 
 
+CREATE TABLE fantasy_leagues (
+    league_id INT AUTO_INCREMENT PRIMARY KEY,
+    league_name VARCHAR(255) NOT NULL,
+    created_by INT, -- references a user who created the league
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE fantasy_teams (
+    team_id INT AUTO_INCREMENT PRIMARY KEY,
+    league_id INT, -- foreign key references leagues(league_id)
+    team_name VARCHAR(255) NOT NULL,
+    owner_id INT, -- references the user who owns the team
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (league_id) REFERENCES fantasy_leagues(league_id)
+);
+
+CREATE TABLE fantasy_team_players (
+    team_player_id INT AUTO_INCREMENT PRIMARY KEY,
+    team_id INT, -- foreign key references teams(team_id)
+    player_id INT, -- foreign key references players(player_id)
+    league_id INT, -- foreign key for quick lookup by league
+    FOREIGN KEY (team_id) REFERENCES fantasy_teams(team_id),
+    FOREIGN KEY (nba_player_id) REFERENCES players(player_id),
+    FOREIGN KEY (league_id) REFERENCES fantasy_leagues(league_id)
+);
+
+CREATE TABLE matchups (
+    matchup_id INT AUTO_INCREMENT PRIMARY KEY,
+    league_id INT, -- foreign key references leagues(league_id)
+    team1_id INT, -- foreign key references teams(team_id)
+    team2_id INT, -- foreign key references teams(team_id)
+    week INT, -- defines the week or round number
+    team1_score INT DEFAULT 0,
+    team2_score INT DEFAULT 0,
+    winner_team_id INT, -- references the winning team if known
+    match_date DATE,
+    FOREIGN KEY (league_id) REFERENCES fantasy_leagues(league_id),
+    FOREIGN KEY (team1_id) REFERENCES fantasy_teams(team_id),
+    FOREIGN KEY (team2_id) REFERENCES fantasy_teams(team_id)
+);
+
+CREATE TABLE standings (
+    standing_id INT AUTO_INCREMENT PRIMARY KEY,
+    league_id INT, -- foreign key references leagues(league_id)
+    team_id INT, -- foreign key references teams(team_id)
+    points INT DEFAULT 0,
+    wins INT DEFAULT 0,
+    losses INT DEFAULT 0,
+    ties INT DEFAULT 0,
+    FOREIGN KEY (league_id) REFERENCES leagues(league_id),
+    FOREIGN KEY (team_id) REFERENCES teams(team_id)
+);
+
+
+
+
+
+
+
 
 -- TABLES NEEDED:
--- LEAGUES
--- LEAGUE MEMBERS
 
 -- ADMINS(HAS USERid OR EMAIL AND BOOLEAN FOR ADMIN OR NOT)
