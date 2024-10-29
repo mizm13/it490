@@ -1035,13 +1035,14 @@ class MessageProcessor
             $db->close();
             return;
         }
-        $stmt->close();
-        $db->close();
+
         echo "Results retrieved successfully.\n";
         $availablePlayers = [];
         while ($row = $result->fetch_assoc()) {
             $availablePlayers[] = $row;  
         }
+        $stmt->close();
+        $db->close();
         $this->response = [
             'type' => 'draft_players_response',
             'data' => $availablePlayers

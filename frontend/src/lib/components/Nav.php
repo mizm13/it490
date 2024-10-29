@@ -27,11 +27,11 @@ public static function displayNav()
           <a class="text-gray-500 hover:text-gray-700 px-8 py-6 rounded-md text-sm font-medium" href="/home">Home</a>
           <?php
           
-          //$session = \nba\src\lib\SessionHandler::getSession();
+          $session = \nba\src\lib\SessionHandler::getSession();
                       //test code
-                      $token = \uniqid();
-                      $timestamp = time() + 60000;
-                      $session =  new \nba\shared\Session($token, $timestamp, 'jane@test.com');
+                      // $token = \uniqid();
+                      // $timestamp = time() + 60000;
+                      // $session =  new \nba\shared\Session($token, $timestamp, 'jane@test.com');
                       //end test code
           if ($session) {
               ?>

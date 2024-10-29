@@ -13,32 +13,38 @@ function fetchChatHistory() {
     fetch('../../api/fetch_chat_history.php')
         .then(response => {
             console.log("trying to get a response from history fetch");  // Relative path to the API
-            console.log(response.json);
+            //console.log(response.json);
             if (!response.ok) {
                 throw new Error('Network response was not ok');
             }
             return response.json();  // Expecting JSON response
         })
         .then(data => {
+            console.log('Received data:', data);
             const chatHistoryDiv = document.getElementById('chathist');
             chatHistoryDiv.innerHTML = ''; // Clear the chat history before loading new data
-            data.forEach(chat => {
-                const messageDiv = document.createElement('div');
-                
-                // Differentiating the display of user messages
-                if (chat.uname === sessionUser.uname) {
-                    messageDiv.classList.add('bg-blue-400', 'text-white', 'p-2', 'rounded-md', 'mb-2', 'float-right', 'max-w-xs', 'clear-both');
-                } else {
-                    messageDiv.classList.add('bg-green-400', 'text-white', 'p-2', 'rounded-md', 'mb-2', 'float-left', 'max-w-xs', 'clear-both');
-                }
+            if (Array.isArray(data.data)) {
+                data.data.forEach(chat => {
+                    const messageDiv = document.createElement('div');
+                    
+                    // Differentiating the display of user messages
+                    if (chat.uname === sessionUser.uname) {
+                        messageDiv.classList.add('bg-blue-400', 'text-white', 'p-2', 'rounded-md', 'mb-2', 'float-right', 'max-w-xs', 'clear-both');
+                    } else {
+                        messageDiv.classList.add('bg-green-400', 'text-white', 'p-2', 'rounded-md', 'mb-2', 'float-left', 'max-w-xs', 'clear-both');
+                    }
 
-                messageDiv.innerHTML = `
-                    <span>${chat.msg}</span><br/>
-                    <span class="text-black text-xs">${chat.uname}, ${chat.dt}</span>
-                `;
-                chatHistoryDiv.appendChild(messageDiv);
-            });
-        })
+                    messageDiv.innerHTML = `
+                        <span>${chat.message}</span><br/>
+                        <span class="text-black text-xs">${chat.username}, ${chat.created_at}</span>
+                    `;
+                    chatHistoryDiv.appendChild(messageDiv);
+                });
+            }else{
+                                console.error('data.data is not an array:', data.data);
+
+            }
+            })
         .catch(error => {
             console.error('Error fetching chat history:', error);
         });

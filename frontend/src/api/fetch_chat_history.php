@@ -28,7 +28,7 @@ try{
 }
 }
 
-//echo json_encode(fetchChatHistory());
+echo json_encode(fetchChatHistory());
 error_log(print_r(fetchChatHistory(), true));
 
 ?>

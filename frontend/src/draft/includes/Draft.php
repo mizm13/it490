@@ -42,30 +42,30 @@ abstract class Draft {
 //QUERY for AVAILABLE players here
 /*need to create DB-side logic to mark players as picked*/
 // Sample associative array to test display
-$data = [
-    ['id' => 1, 'name' => 'John Doe', 'email' => 'john@example.com', 'age' => 30],
-    ['id' => 2, 'name' => 'Jane Smith', 'email' => 'jane@example.com', 'age' => 25],
-    ['id' => 3, 'name' => 'Alice Johnson', 'email' => 'alice@example.com', 'age' => 28],
-    // Add more elements as needed
-];
-//    try{
-//     $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
+// $data = [
+//     ['id' => 1, 'name' => 'John Doe', 'email' => 'john@example.com', 'age' => 30],
+//     ['id' => 2, 'name' => 'Jane Smith', 'email' => 'jane@example.com', 'age' => 25],
+//     ['id' => 3, 'name' => 'Alice Johnson', 'email' => 'alice@example.com', 'age' => 28],
+//     // Add more elements as needed
+// ];
+   try{
+    $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
 
-//     $request = ['type' => 'draft_players_request'];
-//     error_log("request sent is ". print_r($request,true));
-//     $response = $rabbitClient->send_request(json_encode($request), 'application/json');
-//     error_log("response array is: ".print_r($response,true));
-//     if (json_last_error() !== JSON_ERROR_NONE) {
-//         throw new \Exception('Invalid JSON response from RabbitMQ');
-//     }
+    $request = ['type' => 'draft_players_request'];
+    error_log("request sent is ". print_r($request,true));
+    $response = $rabbitClient->send_request(json_encode($request), 'application/json');
+    error_log("response array is: ".print_r($response,true));
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        throw new \Exception('Invalid JSON response from RabbitMQ');
+    }
 
-//     return $response;
+    return $response;
 
-// } catch (\Exception $e) {
-//     error_log('Error in Draft.php: ' . $e->getMessage());
-//     http_response_code(500);
-//     return ['error' => 'Internal Server Error'];
-// }
+} catch (\Exception $e) {
+    error_log('Error in Draft.php: ' . $e->getMessage());
+    http_response_code(500);
+    return ['error' => 'Internal Server Error'];
+}
 
 ?>
 
