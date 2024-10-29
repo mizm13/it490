@@ -994,9 +994,9 @@ class MessageProcessor
         echo "Database connection successful.\n";  
         
         /*TODO: might need to change this as db tables change*/
-        $stmt = $db->prepare("SELECT player_id, name, team_id from players p 
+        $stmt = $db->prepare("SELECT player_id, name, from players p 
         LEFT JOIN leagues l ON p.player_id = l.player_id WHERE l.player_id is NULL
-         and p.player_id NOT IN (SELECT player_id from leagues where league_name = ?");
+         and p.player_id NOT IN (SELECT player_id from fantasy_leagues where league_name = ?");
 
         if (!$stmt) {
             echo "Error preparing statement: " . $db->error . "\n";
@@ -1035,7 +1035,6 @@ class MessageProcessor
             $db->close();
             return;
         }
-
         echo "Results retrieved successfully.\n";
         $availablePlayers = [];
         while ($row = $result->fetch_assoc()) {
@@ -1047,6 +1046,9 @@ class MessageProcessor
             'type' => 'draft_players_response',
             'data' => $availablePlayers
         ];
+
+        $stmt->close();
+        $db->close();
     }
 
     /**
