@@ -1,0 +1,17 @@
+Status: active
+
+To            Action    From
+--            ------    ----
+5672/tcp      ALLOW IN  Anywhere
+15672/tcp     ALLOW IN  Anywhere
+5672/tcp      ALLOW IN  172.30.39.231
+5672/tcp      ALLOW IN  172.30.97.102
+5672/tcp      ALLOW IN  172.30.17.239
+22/tcp        ALLOW IN  Anywhere
+80/tcp        ALLOW IN  Anywhere
+443/tcp       ALLOW IN  Anywhere
+5672/tcp (v6) ALLOW IN  Anywhere (v6)
+15672/tcp (v6) ALLOW IN  Anywhere (v6)
+22/tcp (v6)   ALLOW IN  Anywhere (v6)
+80/tcp (v6)   ALLOW IN  Anywhere (v6)
+443/tcp (v6)  ALLOW IN  Anywhere (v6)
