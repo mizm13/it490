@@ -9,9 +9,11 @@ GRANT ALL PRIVILEGES ON nba.* TO 'eait490'@'172.30.17.239';
 -- Create the 'users' table
 CREATE TABLE users (
     user_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    email VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
     hashed_password VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_admin TINYINT(1) DEFAULT 0
+    phone_number VARCHAR(15)
 );
 
 -- Create the 'sessions' table
@@ -37,22 +39,23 @@ CREATE TABLE chat_messages (
 CREATE TABLE players (
     player_id INT NOT NULL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    team_id INT,
-    season YEAR,
     country VARCHAR(100)
+    position VARCHAR(50)
+    weight INT
 );
 
 CREATE TABLE player_stats (
     stat_id INT AUTO_INCREMENT PRIMARY KEY,
     player_id INT NOT NULL,
-    season YEAR,
-    game_date DATE NOT NULL,
+    game_id INT NOT NULL,
     points INT,
     rebounds INT,
     assists INT,
     blocks INT,
     steals INT,
+    team_id INT
     FOREIGN KEY (player_id) REFERENCES players(player_id)
+    FOREIGN KEY (team_id) REFERENCES teams(team_id)
 );
 
 CREATE TABLE teams (
@@ -78,7 +81,7 @@ CREATE TABLE games (
 CREATE TABLE fantasy_leagues (
     league_id INT AUTO_INCREMENT PRIMARY KEY,
     league_name VARCHAR(255) NOT NULL,
-    created_by INT, -- references a user who created the league
+    created_by VARCHAR(255), -- references a user who created the league
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT TRUE
 );
@@ -98,7 +101,7 @@ CREATE TABLE fantasy_team_players (
     player_id INT, -- foreign key references players(player_id)
     league_id INT, -- foreign key for quick lookup by league
     FOREIGN KEY (team_id) REFERENCES fantasy_teams(team_id),
-    FOREIGN KEY (nba_player_id) REFERENCES players(player_id),
+    FOREIGN KEY (player_id) REFERENCES players(player_id),
     FOREIGN KEY (league_id) REFERENCES fantasy_leagues(league_id)
 );
 
@@ -119,14 +122,14 @@ CREATE TABLE matchups (
 
 CREATE TABLE standings (
     standing_id INT AUTO_INCREMENT PRIMARY KEY,
-    league_id INT, -- foreign key references leagues(league_id)
-    team_id INT, -- foreign key references teams(team_id)
+    league_id INT, -- foreign key references fantasy_leagues(league_id)
+    team_id INT, -- foreign key references fantasy_teams(team_id)
     points INT DEFAULT 0,
     wins INT DEFAULT 0,
     losses INT DEFAULT 0,
     ties INT DEFAULT 0,
-    FOREIGN KEY (league_id) REFERENCES leagues(league_id),
-    FOREIGN KEY (team_id) REFERENCES teams(team_id)
+    FOREIGN KEY (league_id) REFERENCES fantasy_leagues(league_id),
+    FOREIGN KEY (team_id) REFERENCES fantasy_teams(team_id)
 );
 
 

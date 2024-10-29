@@ -2,6 +2,10 @@
 <?php
 date_default_timezone_set('America/New_York'); 
 
+require_once('../../vendor/autoload.php'); // Load Composer dependencies
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load(); // Load the .env file
+
 require_once('path.inc');
 require_once('get_host_info.inc');
 require_once('rabbitMQLib.inc');
@@ -27,8 +31,8 @@ curl_setopt_array($curl, [
     CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
     CURLOPT_CUSTOMREQUEST => "GET",
     CURLOPT_HTTPHEADER => [
-        "x-rapidapi-host: api-nba-v1.p.rapidapi.com",
-        "x-rapidapi-key: c0cb78e69959e338dce6adbd219977b2"
+        "x-rapidapi-host: " . $_ENV['X_RAPIDAPI_HOST'],
+        "x-rapidapi-key: " . $_ENV['X_RAPIDAPI_KEY']
     ],
 ]);
 

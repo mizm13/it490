@@ -1,5 +1,10 @@
 #!/usr/bin/php
 <?php
+
+require_once('../../vendor/autoload.php'); // Load Composer dependencies
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load(); // Load the .env file
+
 require_once('path.inc');
 require_once('get_host_info.inc');
 require_once('rabbitMQLib.inc');
@@ -9,7 +14,7 @@ $client = new rabbitMQClient("testRabbitMQ.ini","API");
 $curl = curl_init();
 
 curl_setopt_array($curl, [
-	CURLOPT_URL => "https://v2.nba.api-sports.io//players?team=1&season=2024", // gets all players for each team based on team id for 2024 season
+	CURLOPT_URL => "https://v2.nba.api-sports.io//players?team=41&season=2024", // gets all players for each team based on team id for 2024 season
 	CURLOPT_RETURNTRANSFER => true,
 	CURLOPT_ENCODING => "",
 	CURLOPT_MAXREDIRS => 10,
@@ -17,8 +22,8 @@ curl_setopt_array($curl, [
 	CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
 	CURLOPT_CUSTOMREQUEST => "GET",
 	CURLOPT_HTTPHEADER => [
-		"x-rapidapi-host: api-nba-v1.p.rapidapi.com",
-		"x-rapidapi-key: c0cb78e69959e338dce6adbd219977b2"
+		"x-rapidapi-host: " . $_ENV['X_RAPIDAPI_HOST'],
+        "x-rapidapi-key: " . $_ENV['X_RAPIDAPI_KEY']
 	],
 ]);
 
