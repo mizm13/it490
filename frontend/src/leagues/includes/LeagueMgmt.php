@@ -8,6 +8,7 @@ use nba\rabbit\RabbitMQClient;
 abstract class LeagueMgmt{
 
     public static function displayLeagueForms() {
+        $session = \nba\src\lib\SessionHandler::getSession();
         ?>
         <form action="index.php?action=create_league" method="POST">
             <label for="league_name">League Name:</label>
@@ -32,56 +33,65 @@ abstract class LeagueMgmt{
         <?php
 
 
-    // Process form submissions based on the 'action' parameter
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action'])) {
-        $action = $_GET['action'];
+    
+// Process form submissions based on the 'action' parameter
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action'])) {
+            $action = $_GET['action'];
 
-        if ($action === 'create_league' && isset($_POST['league_name'], $_POST['team_name'])) {
-            // Create league logic
-            $league_name = $_POST["league_name"];
-            $team_name = $_POST["team_name"];
-            $owner_email = $_SESSION['user_id'];
+            if ($action === 'create_league' && isset($_POST['league_name'], $_POST['team_name'])) {
+                try {// Create league logic
+                    $league_name = filter_input(INPUT_POST,"league_name");
+                    $team_name = filter_input(INPUT_POST,"team_name");
 
-            $inviteCode = substr(str_shuffle("0123456789abcdefghijklmnopqrstuvwxyz"), 0, 10);
-            $data = [
-                'type' => 'create_league',
-                'league_name' => $league_name,
-                'team_name' => $team_name,
-                'email' => $owner_email,
-                'invite_code' => $inviteCode,
-            ];
+                    $inviteCode = substr(str_shuffle("0123456789abcdefghijklmnopqrstuvwxyz"), 0, 10);
+                    $data = [
+                        'type' => 'create_league_request',
+                        'league_name' => $league_name,
+                        'team_name' => $team_name,
+                        'email' => $session->getEmail(),
+                        'invite_code' => $inviteCode,
+                    ];
 
-            $rabbitClient = new RabbitMQClient(__DIR__.'/../../rabbit/host.ini', "Authentication");
-            $response = $rabbitClient->send_request(json_encode($data), 'application/json');
-            $result = json_decode($response, true);
+                    $rabbitClient = new RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
+                    $response = $rabbitClient->send_request(json_encode($data), 'application/json');
+                    $result = json_decode($response, true);
+                    error_log(print_r($result, true));
 
-            echo $result && $result['success']
-                ? "League created successfully. Invite Code: <strong>$inviteCode</strong>"
-                : "Error: " . ($result['error'] ?? 'Unknown error occurred');
-        }
+                    if ($result['result'] == 'true'){
+                        echo "League created successfully. Invite Code: <strong>$inviteCode</strong>";
+                    }
+                    } catch(\Exception $e){
+                    error_log("Error processing league creation ".$e->getMessage());
+                }
+            }
 
-        if ($action === 'join_league' && isset($_POST['invite_code'], $_POST['team_name'])) {
-            // Join league logic
-            $invite_code = $_POST["invite_code"];
-            $team_name = $_POST["team_name"];
-            $user_email = $_SESSION['user_email'];
+            if ($action === 'join_league' && isset($_POST['invite_code'], $_POST['team_name'])) {
+                // Join league logic
+                try {
+                    $invite_code = filter_input(INPUT_POST,"invite_code");
+                    $team_name = filter_input(INPUT_POST,"team_name");
 
-            $data = [
-                'type' => 'join_league',
-                'invite_code' => $invite_code,
-                'email' => $user_email,
-                'team_name' => $team_name
-            ];
+                    $data = [
+                        'type' => 'create_team_request',
+                        'invite_code' => $invite_code,
+                        'email' => $session->getEmail(),
+                        'team_name' => $team_name
+                    ];
 
-            $rabbitClient = new RabbitMQClient(__DIR__.'/../../rabbit/host.ini', "Authentication");
-            $response = $rabbitClient->send_request(json_encode($data), 'application/json');
-            $result = json_decode($response, true);
+                    $rabbitClient = new RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
+                    $response = $rabbitClient->send_request(json_encode($data), 'application/json');
+                    $result = json_decode($response, true);
+                    error_log(print_r($result, true));
 
-            echo $result && $result['success']
-                ? "Successfully joined the league!"
-                : "Error: " . ($result['error'] ?? 'Unknown error occurred');
-        }
+                    if ($result['result'] == 'true'){
+                        echo "Sucessfully joined the league!";
+                    }
+
+                } catch(\Exception $e){
+                    error_log("Error processing league/game creation ".$e->getMessage());
+                }   
+            }
         }
     }
-    }
+}
 ?>

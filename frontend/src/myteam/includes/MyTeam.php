@@ -1,13 +1,13 @@
 <?php
 
-namespace nba\src\draft\includes;
+namespace nba\src\myteam\includes;
 
-abstract class Draft {
+abstract class MyTeam {
     /**
-    * Displays user's homepage.
+    * Displays user's team page.
     * @return void
     */
-    public static function displayDraft() {
+    public static function displayMyTeam() {
 
 ?>
 
@@ -16,8 +16,6 @@ abstract class Draft {
 
         <head>
         <?php echo \nba\src\lib\components\Head::displayHead();
-        echo \nba\src\lib\components\Nav::displayNav();
-            
             $session = \nba\src\lib\SessionHandler::getSession();
 
             //test code

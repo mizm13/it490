@@ -16,7 +16,8 @@ abstract class Registration {
     <html lang='en'>
 
         <head>
-            <?php echo \nba\src\lib\components\Head::displayHead(); ?> 
+            <?php echo \nba\src\lib\components\Head::displayHead();
+             echo \nba\src\lib\components\Nav::displayNav(); ?> 
         </head>
 
         <body>
@@ -107,17 +108,16 @@ abstract class Registration {
                     'phone' => $phone
                 ]);
                     $client = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
-                    //error_log("sending " . print_r($json_message, true));
+                    error_log("sending " . print_r($json_message, true));
                     if($client->send_request($json_message, 'register_request')) {
-                    error_log("Message published successfuly: ".print_r($json_message));
+                    error_log("Message published successfuly: ".print_r($json_message, true));
                     } else {
-                    //echo "Failed to publish message: $json_message";
-                    error_log("Message failed to publish: " . print_r($json_message));
+                    error_log("Message failed to publish: " . print_r($json_message, true));
                     }
                 }
             } 
         } catch (\Exception $e){
-            echo ('Error processing registration'.$e->getMessage());
+            error_log('Error processing registration'.$e->getMessage());
         }
     }
 }

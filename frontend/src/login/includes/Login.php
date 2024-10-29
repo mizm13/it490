@@ -49,7 +49,7 @@ abstract class Login {
                 } 
             }
         }catch(\Exception $e){
-            echo("Error processing login ".$e->getMessage());
+            error_log("Error processing login ".$e->getMessage());
         }
     }//end handleLogin()
 

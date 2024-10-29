@@ -38,6 +38,8 @@ public static function displayNav()
           <a class="text-gray-500 hover:text-gray-700 px-6 mx-8 py-6 rounded-md text-sm font-medium" href="/draft">Draft</a>
           <a class="text-gray-500 hover:text-gray-700 px-6 py-6 rounded-md text-sm font-medium" href="/players">Player Stats</a>
           <a class="text-gray-500 hover:text-gray-700 px-6 py-6 rounded-md text-sm font-medium" href="/myteam">Team Management</a>
+          <a class="text-gray-500 hover:text-gray-700 px-6 py-6 rounded-md text-sm font-medium" href="/leagues">Create/Join a League</a>
+
           <?php } ?>
         </div>
 
