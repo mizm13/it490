@@ -19,12 +19,12 @@ abstract class Home {
         <?php 
         echo \nba\src\lib\components\Head::displayHead();
         echo \nba\src\lib\components\Nav::displayNav();
-        //$session = \nba\src\lib\SessionHandler::getSession();
+        $session = \nba\src\lib\SessionHandler::getSession();
 
             //test code
-            $token = \uniqid();
-            $timestamp = time() + 60000;
-            $session =  new \nba\shared\Session($token, $timestamp, 'jane@test.com');
+            // $token = \uniqid();
+            // $timestamp = time() + 60000;
+            // $session =  new \nba\shared\Session($token, $timestamp, 'jane@test.com');
             //end test code
 
         error_log("session ". print_r($session, true));

@@ -17,12 +17,12 @@ abstract class Draft {
         <head>
         <?php echo \nba\src\lib\components\Head::displayHead();
             
-            //$session = \nba\src\lib\SessionHandler::getSession();
+            $session = \nba\src\lib\SessionHandler::getSession();
 
             //test code
-            $token = \uniqid();
-            $timestamp = time() + 60000;
-            $session =  new \nba\shared\Session($token, $timestamp, 'jane@test.com');
+            // $token = \uniqid();
+            // $timestamp = time() + 60000;
+            // $session =  new \nba\shared\Session($token, $timestamp, 'jane@test.com');
             //end test code
             if(!$session){
                 header('Location: /login');
