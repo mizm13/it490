@@ -6,28 +6,37 @@ require_once('../../vendor/autoload.php'); // Load Composer dependencies
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
 $dotenv->load(); // Load the .env file
 
-use Twilio\Rest\Client;
+$apikey = $_ENV["TEXTBELTAPI_KEY"];
 
-// Load Twilio credentials
-$sid = $_ENV["TWILIO_ACCOUNT_SID"];
-$token = $_ENV["TWILIO_AUTH_TOKEN"];
-$twilio = new Client($sid, $token);
-
-// Define the function to send SMS
 function sendSms($phoneNumber, $body) {
-    global $twilio; // Use the global Twilio client
+    global $apikey; 
+
     try {
-        echo "$phoneNumber . $body \n"; 
+        $ch = curl_init('https://textbelt.com/text');
         
-        $message = $twilio->messages->create(
-            $phoneNumber, // to
-            [
-                "from" => "+18774557425", // your Twilio number
-                "body" => $body
-            ]
+        $data = array(
+            'phone' => $phoneNumber,
+            'message' => $body,
+            'key' => $apikey,
         );
-        
-        echo "SMS sent successfully to $phoneNumber: " . $message->sid . "\n";
+
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+        $response = curl_exec($ch);
+
+        if (curl_errno($ch)) {
+            throw new Exception('Curl error: ' . curl_error($ch));
+        }
+
+        $responseData = json_decode($response, true);
+        if (!$responseData['success']) {
+            throw new Exception('Textbelt API error: ' . $responseData['error']);
+        }
+
+        echo "SMS sent successfully to $phoneNumber. Response: $response \n";
+        curl_close($ch);
     } catch (Exception $e) {
         echo "Failed to send SMS to $phoneNumber. Error: " . $e->getMessage() . "\n";
     }
