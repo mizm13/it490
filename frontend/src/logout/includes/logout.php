@@ -1,8 +1,7 @@
 <?php
 namespace nba\fronend\src\logout;
 
-session_start();
-reset_session();
+/*TODO: session invalidation */
 
 header("Location: /landing");
 ?>

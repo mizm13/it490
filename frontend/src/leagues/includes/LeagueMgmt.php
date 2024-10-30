@@ -10,26 +10,36 @@ abstract class LeagueMgmt{
     public static function displayLeagueForms() {
         $session = \nba\src\lib\SessionHandler::getSession();
         ?>
-        <form action="index.php?action=create_league" method="POST">
-            <label for="league_name">League Name:</label>
-            <input type="text" id="league_name" name="league_name" required>
-            
-            <label for="team_name">Team Name:</label>
-            <input type="text" id="team_name" name="team_name" required>
-            
-            <button type="submit">Create League</button>
-        </form>
+        <div>
+         <h2 class="text-xl md:text-2xl">Create a League - You will be the Commissioner</h2>
+        </div>
+            <div>
+            <form action="index.php?action=create_league" method="POST">
+                <label for="league_name">League Name:</label>
+                <input type="text" id="league_name" name="league_name" required>
+                
+                <label for="team_name">Team Name:</label>
+                <input type="text" id="team_name" name="team_name" required>
+                
+                <button type="submit">Create League</button>
+            </form>
+            </div>
         <?php
         ?>
-        <form action="index.php?action=join_league" method="POST">
-            <label for="invite_code">Invite Code:</label>
-            <input type="text" id="invite_code" name="invite_code" required>
-            
-            <label for="team_name">Team Name:</label>
-            <input type="text" id="team_name" name="team_name" required>
-            
-            <button type="submit">Join League</button>
-        </form>
+        <div>
+        <h2 class="text-xl md:text-2xl">Join League with Invite Code</h2>
+            <div>
+            <form action="index.php?action=join_league" method="POST">
+                <label for="invite_code">Invite Code:</label>
+                <input type="text" id="invite_code" name="invite_code" required>
+                
+                <label for="team_name">Team Name:</label>
+                <input type="text" id="team_name" name="team_name" required>
+                
+                <button type="submit">Join League</button>
+            </form>
+            </div>
+        </div>
         <?php
 
 

@@ -16,7 +16,7 @@ abstract class Draft {
 
         <head>
         <?php echo \nba\src\lib\components\Head::displayHead();
-        //echo \nba\src\lib\components\Nav::displayNav();
+        echo \nba\src\lib\components\Nav::displayNav();
             
             //$session = \nba\src\lib\SessionHandler::getSession();
 
@@ -43,34 +43,32 @@ abstract class Draft {
 <?php
 
 //QUERY for AVAILABLE players here
-/*need to create DB-side logic to mark players as picked*/
 // Sample associative array to test display
-$data = [
-    ['id' => 1, 'name' => 'John Doe', 'email' => 'john@example.com', 'age' => 30],
-    ['id' => 2, 'name' => 'Jane Smith', 'email' => 'jane@example.com', 'age' => 25],
-    ['id' => 3, 'name' => 'Alice Johnson', 'email' => 'alice@example.com', 'age' => 28],
-    // Add more elements as needed
-];
-//    try{
-//     $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
-//     /*TODO get leaguename somehow, maybe user entry?*/
-//     $request = ['type' => 'get_draft_players', 'league' => 'ballin'];
-//     error_log("request sent is ". print_r($request,true));
-//     $response = $rabbitClient->send_request(json_encode($request), 'application/json');
-//     error_log("response array is: ".print_r($response,true));
-//     $responseData = ($response['data']);
-//     error_log(" RESPONSE DATA IS ". print_r($responseData, true));
-//     if (json_last_error() !== JSON_ERROR_NONE) {
-//         throw new \Exception('Invalid JSON response from RabbitMQ');
-//     }
+// $data = [
+//     ['id' => 1, 'name' => 'John Doe', 'email' => 'john@example.com', 'age' => 30],
+//     ['id' => 2, 'name' => 'Jane Smith', 'email' => 'jane@example.com', 'age' => 25],
+//     ['id' => 3, 'name' => 'Alice Johnson', 'email' => 'alice@example.com', 'age' => 28],
+// ];
+   try{
+    $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
+    /*TODO get leaguename somehow, maybe user entry?*/
+    $request = ['type' => 'get_draft_players', 'league' => 'ballin'];
+    error_log("request sent is ". print_r($request,true));
+    $response = $rabbitClient->send_request(json_encode($request), 'application/json');
+    error_log("response array is: ".print_r($response,true));
+    $responseData = ($response['data']);
+    error_log(" RESPONSE DATA IS ". print_r($responseData, true));
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        throw new \Exception('Invalid JSON response from RabbitMQ');
+    }
 
-//     //return $responseData;
+    //return $responseData;
 
-// } catch (\Exception $e) {
-//     error_log('Error in Draft.php: ' . $e->getMessage());
-//     http_response_code(500);
-//     return ['error' => 'Internal Server Error'];
-// }
+} catch (\Exception $e) {
+    error_log('Error in Draft.php: ' . $e->getMessage());
+    http_response_code(500);
+    return ['error' => 'Internal Server Error'];
+}
 
 ?>
 
@@ -87,7 +85,7 @@ $data = [
         </thead>
         <form id="draftForm" method="POST">
         <tbody>
-            <?php foreach ($data as $row): 
+            <?php foreach ($responseData as $row): 
                     $count = 0;
                     $count += 1; ?>
                 <tr class="w-full text-sm bg-white border-b dark:bg-gray-800 dark:border-gray-700">

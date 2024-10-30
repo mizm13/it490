@@ -25,7 +25,6 @@ abstract class Admin {
             <?php echo \nba\src\lib\components\Head::displayHead(); 
             echo \nba\src\lib\components\Nav::displayNav(); 
             $session = \nba\src\lib\SessionHandler::getSession();
-        error_log("session" . $session . print_r($session, true));
         if(!$session){
             error_log("Admin paged access without valid session data");
             header('Location: /login');
@@ -49,7 +48,7 @@ abstract class Admin {
 
         <body>
 
-            <h1 class="text-xl lg:text-4xl">hello commissioner</h1>
+            <h1 class="text-xl lg:text-4xl">hello administrator</h1>
             <h2 class="text-lg lg:text-xl">Users to manage goes here</h2>
                 <div id="statusMessage"></div>
         </body>

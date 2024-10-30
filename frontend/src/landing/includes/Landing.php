@@ -28,7 +28,7 @@ abstract class Landing {
 </head>
 
         <body>
-            <h1 class="text-3xl font-bold underline">hello there sports fans, how is your day today?</h1>
+        <h1 class="text-xl lg:text-4xl font-bold">NBA Fantasy Sports by JEMM</h1>
             <?php 
             //TO DO: make components for Nav, header, and footer.  
             ?>

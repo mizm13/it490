@@ -1,7 +1,7 @@
 <?php
 
 abstract class Draft {
-    /* I pieced this together from various bits I found online a bit such as:
+    /* I pieced this together from various bits I found online such as:
     https://www.red-gate.com/simple-talk/databases/sql-server/t-sql-programming-sql-server/snake-draft-sorting-in-sql-server-part-1/
     https://stackoverflow.com/questions/25376489/snake-draft-overall-order-position-math-related
     */
@@ -11,15 +11,24 @@ abstract class Draft {
      * and snakes this order up and down inserting it into another table, 
      * which will be used to determine who drafts next.
      *
-     * @param int $leagueId, from frontend request
+     * @param mixed $request contains commissioner's email for verification
      * @return void
      */
     function initiateDraft($request) {
-        $leagueId = $request['league'];
+        $leagueId = $request['email'];
         $db = connectDB();
         $db->begin_transaction();
         try{
-            /*Need message sent from frontend to start draft with leagueid, put it on commissioner page*/
+            /*Finds leagueid based on commissioner's username */
+            $leagueQuery = $db->prepare("SELECT league_id FROM fantasy_leagues WHERE created_by = ?");
+            $leagueQuery->bind_param("s", $email);
+            $leagueQuery->execute();
+            $leagueQuery->bind_result($leagueId);
+            if (!$leagueQuery->fetch() || !$leagueId){
+                throw new Exception("Couldn't find a league for this commissioner");
+            }
+            $leagueQuery->close();
+
             /*teamsQuery gets all teams from the league for the draft */
             $teamsQuery = $db->prepare("SELECT team_id FROM fantasy_teams WHERE league_id = ?");
             $teamsQuery->bind_param("i", $leagueId);
@@ -75,32 +84,50 @@ abstract class Draft {
     }/*end function initiateDraft*/
 
     /**
-     * Function that takes in draft pick request and 
+     * Function that takes in draft pick request and handles next pick logic
+     * 
+     * @param mixed $request array that contains user's request with their email and player they chose
      */
 
     function processDraftPick($request) {
-        //TODO: ensure request is sendign right params
-        $leagueId = $request['league']; 
-        $teamId = $request['team'];
+        $email = $request['email'];
         $playerId = $request['player'];
         $db = connectDB();
         $db->begin_transaction();
-    
+        
         try {
+            /*Find user's id number from their email obtained via session info */
+            $userQuery = $db->prepare("SELECT user_id from users WHERE email = ?");
+            $userQuery->bind_param("s", $email);
+            $userQuery->execute();
+            $userQuery->bind_result($userId); 
+            if (!$userQuery->fetch() || !$userId) {
+                throw new Exception("Couldn't find the user's id.");
+            }
+            $userQuery->close();   
+
+            /*Find the user's league and team ids using owner/use id */
+            $ownerQuery = $db->prepare("
+            SELECT league_id, team_id FROM fantasy_teams 
+            WHERE owner_id = ?");
+            $ownerQuery->bind_param("i", $userId);
+            $ownerQuery->execute();
+            $ownerQuery->bind_result($leagueId,$teamId);
+            if (!$ownerQuery->fetch() || !$leagueId || !$teamId){
+                throw new Exception("Couldn't find a league or team for that owner ID");
+            }
+            $ownerQuery->close();
+
             /*Get current draft status and who picks next */
-            $leagueQuery = $db->prepare("
-                SELECT draft_started, draft_completed, current_round_number, current_pick_number
-                FROM fantasy_leagues
-                WHERE league_id = ?
-                FOR UPDATE
-            ");
-            $leagueQuery->bind_param("i", $leagueId);
-            $leagueQuery->execute();
-            $leagueQuery->bind_result($draftStarted, $draftCompleted, $currentRoundNumber, $currentPickNumber);
-            if (!$leagueQuery->fetch() || !$draftStarted || $draftCompleted) {
+            $draftQuery = $db->prepare("SELECT draft_started, draft_completed, current_round_number, current_pick_number 
+            FROM fantasy_leagues WHERE league_id = ? FOR UPDATE");
+            $draftQuery->bind_param("i", $leagueId);
+            $draftQuery->execute();
+            $draftQuery->bind_result($draftStarted, $draftCompleted, $currentRoundNumber, $currentPickNumber);
+            if (!$draftQuery->fetch() || !$draftStarted || $draftCompleted) {
                 throw new Exception("Draft has not started, has already completed, or league not found.");
             }
-            $leagueQuery->close();
+            $draftQuery->close();
     
             /*find the team that should be picking*/
             $orderQuery = $db->prepare("

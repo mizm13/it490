@@ -21,8 +21,11 @@ abstract class Registration {
         </head>
 
         <body>
-
-            <form id="registerForm" method="POST">
+        <h1 class="text-xl lg:text-4xl">NBA Fantasy Sports by JEMM</h1>
+        <div>
+            <h2 class="text-xl lg:text-2xl">Team Owner Registration</h1>>
+        </div>    
+        <form id="registerForm" method="POST">
                 <div class="w-full max-w-md pt-20">
                     <div class="md:flex md:items-start mb-6 mt-20">
                         <label class="items-start block text-gray-500 font-bold md:text-right mb-1 md:mb-0 pr-4" for="email">Email Address</label>

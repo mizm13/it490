@@ -14,18 +14,13 @@ require (__DIR__.'/../../vendor/autoload.php');
      <meta charset="UTF-8">
      <?php echo \nba\src\lib\components\Head::displayHead();
         echo \nba\src\lib\components\Nav::displayNav();?>
-     <title>League Management</title>
+     <title >League Management</title>
  </head>
  <body>
-     <h1>League Management</h1>
+     <h1 class="text-xl md:text-4xl font-bold">League Management</h1>
      <div>
-         <h2>Create League</h2>
          <?php echo \nba\src\leagues\includes\LeagueMgmt::displayLeagueForms(); ?>
      </div>
-     <!-- <div>
-         <h2>Join League</h2>
-         <?php //echo \nba\src\leagues\includes\LeagueMgmt::displayJoinLeagueForm(); ?>
-     </div> -->
  </body>
  </html>
  

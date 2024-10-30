@@ -74,7 +74,7 @@ abstract class Login {
 
         <body>
 
-            <h1 class="text-xl lg:text-4xl">hello there sports fans, how is your day today?</h1>
+        <h1 class="text-xl lg:text-4xl font-bold">NBA Fantasy Sports by JEMM</h1>
             <form id="loginForm" method="POST">
                 <div class="w-full max-w-md pt-20">
                     <div class="md:flex md:items-start mb-6 mt-20">
