@@ -16,14 +16,14 @@ abstract class Draft {
 
         <head>
         <?php echo \nba\src\lib\components\Head::displayHead();
-        echo \nba\src\lib\components\Nav::displayNav();
+        //echo \nba\src\lib\components\Nav::displayNav();
             
-            $session = \nba\src\lib\SessionHandler::getSession();
+            //$session = \nba\src\lib\SessionHandler::getSession();
 
             //test code
-            // $token = \uniqid();
-            // $timestamp = time() + 60000;
-            // $session =  new \nba\shared\Session($token, $timestamp, 'jane@test.com');
+            $token = \uniqid();
+            $timestamp = time() + 60000;
+            $session =  new \nba\shared\Session($token, $timestamp, 'jane@test.com');
             //end test code
             if(!$session){
                 header('Location: /login');
@@ -45,30 +45,32 @@ abstract class Draft {
 //QUERY for AVAILABLE players here
 /*need to create DB-side logic to mark players as picked*/
 // Sample associative array to test display
-// $data = [
-//     ['id' => 1, 'name' => 'John Doe', 'email' => 'john@example.com', 'age' => 30],
-//     ['id' => 2, 'name' => 'Jane Smith', 'email' => 'jane@example.com', 'age' => 25],
-//     ['id' => 3, 'name' => 'Alice Johnson', 'email' => 'alice@example.com', 'age' => 28],
-//     // Add more elements as needed
-// ];
-   try{
-    $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
+$data = [
+    ['id' => 1, 'name' => 'John Doe', 'email' => 'john@example.com', 'age' => 30],
+    ['id' => 2, 'name' => 'Jane Smith', 'email' => 'jane@example.com', 'age' => 25],
+    ['id' => 3, 'name' => 'Alice Johnson', 'email' => 'alice@example.com', 'age' => 28],
+    // Add more elements as needed
+];
+//    try{
+//     $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
+//     /*TODO get leaguename somehow, maybe user entry?*/
+//     $request = ['type' => 'get_draft_players', 'league' => 'ballin'];
+//     error_log("request sent is ". print_r($request,true));
+//     $response = $rabbitClient->send_request(json_encode($request), 'application/json');
+//     error_log("response array is: ".print_r($response,true));
+//     $responseData = ($response['data']);
+//     error_log(" RESPONSE DATA IS ". print_r($responseData, true));
+//     if (json_last_error() !== JSON_ERROR_NONE) {
+//         throw new \Exception('Invalid JSON response from RabbitMQ');
+//     }
 
-    $request = ['type' => 'get_draft_players', 'league' => /*TODO*/];
-    error_log("request sent is ". print_r($request,true));
-    $response = $rabbitClient->send_request(json_encode($request), 'application/json');
-    error_log("response array is: ".print_r($response,true));
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        throw new \Exception('Invalid JSON response from RabbitMQ');
-    }
+//     //return $responseData;
 
-    return $response;
-
-} catch (\Exception $e) {
-    error_log('Error in Draft.php: ' . $e->getMessage());
-    http_response_code(500);
-    return ['error' => 'Internal Server Error'];
-}
+// } catch (\Exception $e) {
+//     error_log('Error in Draft.php: ' . $e->getMessage());
+//     http_response_code(500);
+//     return ['error' => 'Internal Server Error'];
+// }
 
 ?>
 
@@ -83,6 +85,7 @@ abstract class Draft {
                 <th class="px-0 py-4 text-left">Select</th>
             </tr>
         </thead>
+        <form id="draftForm" method="POST">
         <tbody>
             <?php foreach ($data as $row): 
                     $count = 0;
@@ -90,19 +93,33 @@ abstract class Draft {
                 <tr class="w-full text-sm bg-white border-b dark:bg-gray-800 dark:border-gray-700">
                     <td class="px-2 py-2 text-left"><?php echo htmlspecialchars($row['name']); ?></td>
                     <td class="px-2 py-2 text-left"><?php echo htmlspecialchars($row['email']); ?></td>
-                    <td class="px-2 py-2 text-left"><input name="radio <?php echo $count;?>" type="radio"/></td>
+                    <td class="px-2 py-2 text-left"><input name="selection[<?php echo $count; ?>]" value="<?php echo $row['name'];?>" type="radio"/></td>
                 </tr>
             <?php endforeach; ?>
         </tbody>
     </table>
+    <button type=submit>Submit</button>
+    </form> 
     </div>
 </body>
 </html>
-
-        </head>
-        <body></body>
+    
         <?php
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            
+            try {
+                $selection = $_POST['selection'] ?? null;
+                $request = ['type' => 'add_player_draft', 'email'=> $uname, 'player' => $selection];
+                $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini',"Authentication");
+                $response=$rabbitClient->send_request(json_encode($request), 'application/json');
+                error_log("Draft request sent:  ".print_r($request,true));
+                error_log("Draft response received:  ".print_r($response,true));
+                echo "$selection drafted successfully.";
+            } catch(\Exception $e){
+                error_log("an error occured". $e->getMessage());
+            }
         }
+    }
     }
 }
     ?>

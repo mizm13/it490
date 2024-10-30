@@ -54,10 +54,9 @@ abstract class LeagueMgmt{
 
                     $rabbitClient = new RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
                     $response = $rabbitClient->send_request(json_encode($data), 'application/json');
-                    $result = json_decode($response, true);
-                    error_log(print_r($result, true));
+                    error_log(print_r($response, true));
 
-                    if ($result['result'] == 'true'){
+                    if ($response['result'] == 'true'){
                         echo "League created successfully. Invite Code: <strong>$inviteCode</strong>";
                     }
                     } catch(\Exception $e){
@@ -80,10 +79,10 @@ abstract class LeagueMgmt{
 
                     $rabbitClient = new RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
                     $response = $rabbitClient->send_request(json_encode($data), 'application/json');
-                    $result = json_decode($response, true);
-                    error_log(print_r($result, true));
+                    
+                    error_log(print_r($response, true));
 
-                    if ($result['result'] == 'true'){
+                    if ($response['result'] == 'true'){
                         echo "Sucessfully joined the league!";
                     }
 

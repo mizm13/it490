@@ -31,7 +31,6 @@ abstract class Landing {
             <h1 class="text-3xl font-bold underline">hello there sports fans, how is your day today?</h1>
             <?php 
             //TO DO: make components for Nav, header, and footer.  
-            //TO DO: Make session logic.
             ?>
             <a href="../login"> Login Here</a>
         </body>
