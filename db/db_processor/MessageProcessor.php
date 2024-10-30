@@ -5,7 +5,7 @@
  */
 require_once('/home/enisakil/git/it490/db/connectDB.php');
 require_once('/home/enisakil/git/it490/db/get_host_info.inc');
-
+require('Draft.php');
 
 class MessageProcessor
 {
@@ -85,6 +85,16 @@ class MessageProcessor
 
             case 'get_draft_players':
                 $this->processorPlayers2Draft($request);
+                break;
+                
+            case 'start_draft':
+                $draft= new Draft();
+                $draft->initiateDraft($request);
+                break;
+
+            case 'add_player_draft':
+                $draft = new Draft();
+                $draft->processDraftPick($request);
                 break;
 
             case 'add_player_request':

@@ -14,8 +14,8 @@ abstract class Draft {
      * @param int $leagueId, from frontend request
      * @return void
      */
-    function initiateDraft($leagueId) {
-
+    function initiateDraft($request) {
+        $leagueId = $request['league'];
         $db = connectDB();
         $db->begin_transaction();
         try{
@@ -74,9 +74,15 @@ abstract class Draft {
         $db->close();
     }/*end function initiateDraft*/
 
+    /**
+     * Function that takes in draft pick request and 
+     */
 
-
-    function processDraftPick($leagueId, $teamId, $playerId) {
+    function processDraftPick($request) {
+        //TODO: ensure request is sendign right params
+        $leagueId = $request['league']; 
+        $teamId = $request['team'];
+        $playerId = $request['player'];
         $db = connectDB();
         $db->begin_transaction();
     

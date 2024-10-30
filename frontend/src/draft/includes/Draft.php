@@ -110,9 +110,9 @@ $data = [
             try {
                 $selection = $_POST['selection'] ?? null;
                 $request = ['type' => 'add_player_draft', 'email'=> $uname, 'player' => $selection];
+                error_log("Draft request sending:  ".print_r($request,true));
                 $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini',"Authentication");
                 $response=$rabbitClient->send_request(json_encode($request), 'application/json');
-                error_log("Draft request sent:  ".print_r($request,true));
                 error_log("Draft response received:  ".print_r($response,true));
                 echo "$selection drafted successfully.";
             } catch(\Exception $e){
