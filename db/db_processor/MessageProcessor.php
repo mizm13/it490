@@ -625,6 +625,7 @@ class MessageProcessor
     $leagueName = $request['league_name'];
     $ownerEmail = $request['email'];
     $teamName = $request['team_name'];
+    $inviteCode = $request['invite_code'];
 
     echo "Connecting to the database...\n";
     $db = connectDB();
@@ -643,12 +644,12 @@ class MessageProcessor
     try {
         // Step 1: Create the new league
         echo "Creating the new league...\n";
-        $leagueQuery = $db->prepare("INSERT INTO fantasy_leagues (league_name, created_by) VALUES (?, ?)");
+        $leagueQuery = $db->prepare("INSERT INTO fantasy_leagues (league_name, created_by, invite_code) VALUES (?, ?, ?)");
         if (!$leagueQuery) {
             throw new Exception("Failed to prepare league insert query: " . $db->error);
         }
 
-        $leagueQuery->bind_param("ss", $leagueName, $ownerEmail);
+        $leagueQuery->bind_param("sss", $leagueName, $ownerEmail, $inviteCode);
 
         if (!$leagueQuery->execute()) {
             throw new Exception("Failed to create the league: " . $leagueQuery->error);
@@ -721,7 +722,6 @@ class MessageProcessor
             return;
         }
         echo "Database connection successful.\n";
-        $db->begin_transaction();
     
         try {
             // Step 1: Validate the invite code and retrieve the league_id
@@ -775,8 +775,6 @@ class MessageProcessor
     
             echo "User's team created successfully in the league.\n";
     
-            $db->commit();
-    
             /*Success and success response*/
             $this->response = [
                 'type' => 'create_team_response',
@@ -785,7 +783,6 @@ class MessageProcessor
             ];
     
         } catch (Exception $e) {
-            $db->rollback();
             echo "Error occurred: " . $e->getMessage() . "\n";
     
             /*Failure and failure response*/
@@ -992,11 +989,59 @@ class MessageProcessor
             return;    
         }     
         echo "Database connection successful.\n";  
+
+        // Step 1: Retrieve the league_id based on the league_name
+        $leagueName = $request['league']; // Assuming the league name is passed in the request
+
+        // Prepare the statement to get the league_id
+        $leagueStmt = $db->prepare("SELECT league_id FROM fantasy_leagues WHERE league_name = ?");
+        if (!$leagueStmt) {
+            echo "Error preparing league statement: " . $db->error . "\n";
+            $db->close();
+            return;
+        }
+
+        // Bind the league name parameter
+        if (!$leagueStmt->bind_param('s', $leagueName)) {
+            echo "Error binding league parameters: " . $leagueStmt->error . "\n";
+            $leagueStmt->close();
+            $db->close();
+            return;
+        }
+
+        // Execute the statement
+        if (!$leagueStmt->execute()) {
+            echo "Error executing league statement: " . $leagueStmt->error . "\n";
+            $leagueStmt->close();
+            $db->close();
+            return;
+        }
+
+        // Get the result for league_id
+        $leagueResult = $leagueStmt->get_result();
+        if ($leagueResult->num_rows === 0) {
+            echo "No league found with the name: " . $leagueName . "\n";
+            $leagueStmt->close();
+            $db->close();
+            return;
+        }
+
+        // Fetch the league_id
+        $leagueRow = $leagueResult->fetch_assoc();
+        $leagueId = $leagueRow['league_id'];
+        $leagueStmt->close();
+
         
         /*TODO: might need to change this as db tables change*/
-        $stmt = $db->prepare("SELECT player_id, name, from players p 
-        LEFT JOIN leagues l ON p.player_id = l.player_id WHERE l.player_id is NULL
-         and p.player_id NOT IN (SELECT player_id from fantasy_leagues where league_name = ?");
+        $stmt = $db->prepare("SELECT p.player_id, p.name 
+            FROM players p 
+            WHERE p.player_id NOT IN (
+                SELECT ftp.player_id 
+                FROM fantasy_team_players ftp 
+                JOIN fantasy_teams ft ON ftp.team_id = ft.team_id 
+                WHERE ft.league_id = ?
+            )");
+
 
         if (!$stmt) {
             echo "Error preparing statement: " . $db->error . "\n";
@@ -1005,16 +1050,14 @@ class MessageProcessor
         }
         echo "SQL statement prepared successfully.\n";
 
-        if(isset($request['league'])){
-            $league = $request['league'];
-            echo "Binding parameters...\n";
-            if (!$stmt->bind_param('s', $league)) {
-                echo "Error binding parameters: " . $stmt->error . "\n";
-                $stmt->close();
-                $db->close();
-                return;
-            }
+        // Bind the league_id parameter
+        if (!$stmt->bind_param('i', $leagueId)) { // league_id is an int
+            echo "Error binding players parameters: " . $stmt->error . "\n";
+            $stmt->close();
+            $db->close();
+            return;
         }
+        
         echo "Parameters bound successfully.\n";
 
         echo "Executing the SQL statement...\n";
@@ -1042,13 +1085,12 @@ class MessageProcessor
         }
         $stmt->close();
         $db->close();
+
+        
         $this->response = [
             'type' => 'draft_players_response',
             'data' => $availablePlayers
         ];
-
-        $stmt->close();
-        $db->close();
     }
 
     /**
