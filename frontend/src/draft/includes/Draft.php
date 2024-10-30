@@ -76,8 +76,8 @@ abstract class Draft {
     <h1 class="txt-xl text-center md:text-3xl">Players available for draft</h1>
     <div class="relative overflow-x-auto">
     <table class="table-auto w-full text-sm text-gray-500 dark:text-gray-400">
-        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-            <tr>
+    <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+    <tr>
                 <th class="px-2 py-4 text-left">Player Name</th>
                 <th class="px-2 pl-4 py-4 text-left">Team Name</th>
                 <th class="px-0 py-4 text-left">Select</th>

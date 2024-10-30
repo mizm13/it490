@@ -52,7 +52,7 @@ class MessageProcessor
                 break;
             
             case 'commissioner_check_request':
-            $this->processorCommissionerCheck($request);
+            $this->processorCommissionerMgmt($request);
             break;
 
             case 'add_user_request':
@@ -574,11 +574,11 @@ class MessageProcessor
         
         echo "Connecting to the database...\n";
         $db = connectDB();
-        $db->begin_transaction();
+        
         if ($db === null) {
             echo "Failed to connect to the database.\n";
             $this->response = [
-                'type' => 'delete_user_response',
+                'type' => 'players_to_trade_response',
                 'result' => 'false',
                 'message' => 'Database connection failed.'
             ];
@@ -586,6 +586,8 @@ class MessageProcessor
         }
         echo "Database connection successful.\n";
 
+        $db->begin_transaction();
+        try{
         $commishQuery = $db->prepare("SELECT league_id FROM fantasy_leagues WHERE created_by = ?");
         $commishQuery->bind_param("s", $email);
         $commishQuery->execute();
@@ -601,21 +603,37 @@ class MessageProcessor
         $teamsQuery->bind_param("i", $leagueId);
         $teamsQuery->execute();
         $result = $teamsQuery->get_result();
+
+        if(!$result){
+            echo "Query to get player and team ids has failed.\n";
+            throw new Exception("Query to get player and team IDs has failed");
+        }
+
         $players = [];
         while($row = $result->fetch_assoc()){
             $players = $row;
         }
         $teamsQuery->close();
         $db->commit();
-        $db->close();
 
         $this->response = [
-            'type' => 'player_trade_response', 
+            'type' => 'players_to_trade_response', 
+            'result' => 'true',
             'league' => $leagueId, 
             'data'=> $players
         ];
-
+    } catch(Exception $e){
+        $db->rollback();
+        echo "Error getting players for trades  " . $e->getMessage();
+        $this->response = [
+            'type' => 'players_to_trade_response', 
+            'result' => 'false',
+            'message' => $e->getMessage()
+        ];
+    } finally{
+        $db->close();
     }
+}
 
     /**
      * Process admin request to delete a user.
