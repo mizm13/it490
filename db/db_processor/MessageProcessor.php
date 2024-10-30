@@ -51,9 +51,9 @@ class MessageProcessor
                 $this->processorAdminCheckRequest($request);
                 break;
             
-            // case 'commisioner_check_request':
-            //     $this->processorCommisionerCheck($request);
-            //     break;
+            case 'commissioner_check_request':
+            $this->processorCommissionerCheck($request);
+            break;
 
             case 'add_user_request':
                 $this->processorAddUser($request);
@@ -87,6 +87,12 @@ class MessageProcessor
                 $this->processorPlayers2Draft($request);
                 break;
                 
+            /*TODO: get all teams and their players for a given league to 
+            enable trades */
+            case 'get_players_to_trade':
+                $this->processorPlayers2Trade($request);
+                break;
+
             case 'start_draft':
                 $draft= new Draft();
                 $draft->initiateDraft($request);
@@ -402,7 +408,7 @@ class MessageProcessor
     }
 
     /**
-     * Process SearchRequest message.
+     * Process Admin Check request.
      */
     private function processorAdminCheckRequest($request)
     {
@@ -556,6 +562,61 @@ class MessageProcessor
         $db->close();
     }
  
+    /**
+     * Checks for commissioner status and returns team, league, player info.
+     *
+     * @param mixed $request
+     * @return void
+     */
+    function processorCommissionerMgmt($request){
+        
+        $email = $request['email'];
+        
+        echo "Connecting to the database...\n";
+        $db = connectDB();
+        $db->begin_transaction();
+        if ($db === null) {
+            echo "Failed to connect to the database.\n";
+            $this->response = [
+                'type' => 'delete_user_response',
+                'result' => 'false',
+                'message' => 'Database connection failed.'
+            ];
+            return;
+        }
+        echo "Database connection successful.\n";
+
+        $commishQuery = $db->prepare("SELECT league_id FROM fantasy_leagues WHERE created_by = ?");
+        $commishQuery->bind_param("s", $email);
+        $commishQuery->execute();
+        $commishQuery->bind_result($leagueId);
+        
+        if(!$commishQuery->fetch() || !$leagueId){
+            echo "Error executing commissioner query.\n";
+            throw new Exception("Error executing commissioner query!");
+        }
+        $commishQuery->close();
+
+        $teamsQuery = $db->prepare("SELECT team_id, player_id from fantasy_team_players WHERE league_id = ?");
+        $teamsQuery->bind_param("i", $leagueId);
+        $teamsQuery->execute();
+        $result = $teamsQuery->get_result();
+        $players = [];
+        while($row = $result->fetch_assoc()){
+            $players = $row;
+        }
+        $teamsQuery->close();
+        $db->commit();
+        $db->close();
+
+        $this->response = [
+            'type' => 'player_trade_response', 
+            'league' => $leagueId, 
+            'data'=> $players
+        ];
+
+    }
+
     /**
      * Process admin request to delete a user.
      *
@@ -1167,7 +1228,7 @@ class MessageProcessor
         $db->close();
     }
        /**
-     * Undocumented function
+     * Removes a player, for trades or if dropped. Not for draft.
      *
      * @return void
      */

@@ -21,7 +21,7 @@ public static function displayNav()
     <div class="flex justify-between h-16">
       
         <div class="flex-shrink-0">
-          <a class="text-xl font-bold py-6 text-gray-800" href="/landing">NBA FANTASY</a>
+          <a class="text-xl font-bold py-6 text-gray-800" href="/landing">NBA FANTASY by JEMM</a>
         </div>
         <div class="hidden sm:-my-px sm:ml-6 sm:flex">
           <a class="text-gray-500 hover:text-gray-700 px-8 py-6 rounded-md text-sm font-medium" href="/home">Home</a>
@@ -36,7 +36,7 @@ public static function displayNav()
           if ($session) {
               ?>
           <a class="text-gray-500 hover:text-gray-700 px-6 mx-8 py-6 rounded-md text-sm font-medium" href="/draft">Draft</a>
-          <a class="text-gray-500 hover:text-gray-700 px-6 py-6 rounded-md text-sm font-medium" href="/players">Player Stats</a>
+          <a class="text-gray-500 hover:text-gray-700 px-6 py-6 rounded-md text-sm font-medium" href="/commissioner">Commissioner Portal</a>
           <a class="text-gray-500 hover:text-gray-700 px-6 py-6 rounded-md text-sm font-medium" href="/myteam">Team Management</a>
           <a class="text-gray-500 hover:text-gray-700 px-6 py-6 rounded-md text-sm font-medium" href="/leagues">Create/Join a League</a>
 

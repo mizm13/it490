@@ -113,9 +113,11 @@ abstract class Registration {
                     $client = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
                     error_log("sending " . print_r($json_message, true));
                     if($client->send_request($json_message, 'register_request')) {
-                    error_log("Message published successfuly: ".print_r($json_message, true));
+                        error_log("Message published successfuly: ".print_r($json_message, true));
+                        echo("Registered Successfully! Proceed to login!");
                     } else {
-                    error_log("Message failed to publish: " . print_r($json_message, true));
+                        echo("Error with registration, please try again.");
+                        error_log("Message failed to publish: " . print_r($json_message, true));
                     }
                 }
             } 

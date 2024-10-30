@@ -29,9 +29,10 @@ abstract class Landing {
 
         <body>
         <h1 class="text-xl lg:text-4xl font-bold">NBA Fantasy Sports by JEMM</h1>
-        <div class="relative">
+            <?php 
+            //TO DO: make components for Nav, header, and footer.  
+            ?>
             <a href="../login"> Login Here</a>
-        </div>
         </body>
         </html>
     <?php
