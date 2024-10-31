@@ -1,11 +1,10 @@
 <?php
 namespace nba\src\register\includes;
-//require(__DIR__ . "/../lib/nav.php");
 require(__DIR__. "/../../lib/sanitizers.php");
 abstract class Registration {
 
     /**
-    * Displays main login page.
+    * Displays the registration page page.
     * @return void
     */
     public static function displayRegistration() {
@@ -90,10 +89,10 @@ abstract class Registration {
                     echo ("Please confirm password");
                     $hasError = true;
                 }
-                if (empty($phone)) {
-                    echo ("Please enter a phone number");
-                    $hasError = true;
-                }
+                // if (empty($phone)) {
+                //     echo ("Please enter a phone number");
+                //     $hasError = true;
+                // }
                 if (!is_valid_password($password)) {
                     echo ("Password must be at least 8 characters and contain one upper case letter and one special character");
                     $hasError = true;
@@ -112,8 +111,9 @@ abstract class Registration {
                 ]);
                     $client = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
                     error_log("sending " . print_r($json_message, true));
-                    if($client->send_request($json_message, 'register_request')) {
+                    if($response = $client->send_request($json_message, 'application/json')) {
                         error_log("Message published successfuly: ".print_r($json_message, true));
+                        //error_log(print_r($response), true);
                         echo("Registered Successfully! Proceed to login!");
                     } else {
                         echo("Error with registration, please try again.");
