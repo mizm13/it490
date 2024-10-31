@@ -53,40 +53,20 @@ abstract class Draft {
     
     $request = json_encode(['type' => 'check_draft_status', 'email'=>$email], true);
     $response = $rabbitClient->send_request($request, 'application/json');
-    if($response['result']){
+    error_log("response array is: ".print_r($response,true));
+    if($response['result']=='true'){
         $leagueId = $response['league'];
-        $request = ['type' => 'get_draft_players', 'league' => $leagueId];
+        $request = json_encode(['type' => 'get_draft_players', 'league' => $leagueId], true);
         error_log("request sent is ". print_r($request,true));
-        $response = $rabbitClient->send_request(json_encode($request), 'application/json');
+        $response = $rabbitClient->send_request($request, 'application/json');
         error_log("response array is: ".print_r($response,true));
         $responseData = ($response['data']);
         error_log(" RESPONSE DATA IS ". print_r($responseData, true));
         if (json_last_error() !== JSON_ERROR_NONE) {
             throw new \Exception('Invalid JSON response from RabbitMQ');
         }
-    } else{
-        echo("There isn't currently a draft happening in this league");
-        ?>
-        <body>
-        <h2>Commissioners Can Start Their Draft</h2>
-        <form id="startDraftForm" method="POST">
-            <input type="hidden" name="start_draft" value="start_draft">
-        <button type="submit">Start Draft</button>
-        </form>
-        <body>
-        <?php
-    }
-
-    //return $responseData;
-
-} catch (\Exception $e) {
-    error_log('Error in Draft.php: ' . $e->getMessage());
-    http_response_code(500);
-    return ['error' => 'Internal Server Error'];
-}
 
 ?>
-
 <body>
     <h1 class="txt-xl text-center md:text-3xl">Players available for draft</h1>
     <div class="relative overflow-x-auto">
@@ -100,6 +80,7 @@ abstract class Draft {
         </thead>
         <form id="draftForm" method="POST">
         <tbody>
+        
             <?php foreach ($responseData as $row): 
                     $count = 0;
                     $count += 1; ?>
@@ -116,8 +97,29 @@ abstract class Draft {
     </div>
 </body>
 </html>
-    
+<?php
+    } else{
+        echo("There isn't currently a draft happening in this league");
+        ?>
+        <body>
+        <h2>Commissioners Can Start Their Draft</h2>
+        <form id="startDraftForm" method="POST">
+            <input type="hidden" name="start_draft" value="start_draft">
+    <button class="bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white py-2 px-4 border border-blue-500 hover:border-transparent rounded"
+        type="submit">Start Draft</button>
+        </form>
+        <body>
         <?php
+    }
+
+    //return $responseData;
+
+} catch (\Exception $e) {
+    error_log('Error in Draft.php: ' . $e->getMessage());
+    http_response_code(500);
+    return ['error' => 'Internal Server Error'];
+}
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if(isset($_POST['selection'])){
                 try {
@@ -133,11 +135,14 @@ abstract class Draft {
                 }
             } elseif(isset($_POST['start_draft'])){
                 try {
-                    error_log("Draft request sending:  ".print_r($request,true));
                     $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini',"Authentication");
-                    $request = json_encode(['type'=>'start_draft', 'email'=>$email]. true);
-                    error_log("Draft response received:  ".print_r($response,true));
+                    $request = json_encode(['type'=>'start_draft', 'email'=>$email], true);
+                    error_log("Draft request sending:  ".print_r($request,true));
+
                     $response = $rabbitClient->send_request($request, 'application/json');
+                    error_log("Draft response received:  ".print_r($response,true));
+
+
                     if($response['result']=='true'){
                         echo "Draft started successfully.  Please reload to begin";
                     } elseif($response['result']=='false' && $response['commissioner']=='false'){

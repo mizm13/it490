@@ -32,14 +32,14 @@ abstract class Home {
             header('Location: /login');
             exit();
         } else {
-            $uname = htmlspecialchars($session->getEmail(), ENT_QUOTES, 'UTF-8');
-            // $fullEmail = htmlspecialchars($session->getEmail(), ENT_QUOTES, 'UTF-8');
-            // $atPos = strpos($fullEmail, '@');
-            // if ($atPos !== false) {
-            //     $uname = substr($fullEmail, 0, $atPos);
-            // } else {
-            //     $uname = $fullEmail;
-            // }
+            //$uname = htmlspecialchars($session->getEmail(), ENT_QUOTES, 'UTF-8');
+            $fullEmail = htmlspecialchars($session->getEmail(), ENT_QUOTES, 'UTF-8');
+            $atPos = strpos($fullEmail, '@');
+            if ($atPos !== false) {
+                $uname = substr($fullEmail, 0, $atPos);
+            } else {
+                $uname = $fullEmail;
+            }
         }
         ?>
         <script>
@@ -54,21 +54,15 @@ abstract class Home {
         <body>
         <div class="relative flex min-h-screen flex-col 
         justify-center overflow-hidden bg-slate-200 px-12 py-6 sm:py-32 lg:py-14">
-            <h1 class="text-lg lg:text-2xl font-bold"> User <?php echo $session->getEmail(); ?>'s HOME PAGE</h1>
+            <h1 class="text-lg lg:text-4xl font-bold text-center"> User <?php echo $uname; ?>'s HOME PAGE</h1>
             <div class="text-lg lg:text-3xl space-y-6 py-8 leading-7 text-gray-600">
             <table class="table-auto">
                 <thead>
 
                     <tr >
                     <th class="px-12"></th>
-                    <th class="px-12 font-extrabold underline underline-offset-3">Player Stats</th>
+                    <th class="px-12 font-extrabold underline underline-offset-3">Your Player's Stats</th>
                     <th class="px-12"></th>    
-                    </tr>
-                    <tr>
-                    <th class="px-12">Name</th>
-                    <th class="px-12">wins/losses?</th>
-                    <th class="px-12">shooting pct?</th>
-                    </tr>
                 </thead>
                 <tbody></tbody>
             </table>

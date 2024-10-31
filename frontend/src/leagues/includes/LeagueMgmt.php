@@ -21,7 +21,7 @@ abstract class LeagueMgmt{
                 <label for="team_name">Team Name:</label>
                 <input type="text" id="team_name" name="team_name" required>
                 
-                <button type="submit">Create League</button>
+                <button class="bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white py-2 px-4 border border-blue-500 hover:border-transparent rounded" type="submit">Create League</button>
             </form>
             </div>
         <?php
@@ -36,7 +36,7 @@ abstract class LeagueMgmt{
                 <label for="team_name">Team Name:</label>
                 <input type="text" id="team_name" name="team_name" required>
                 
-                <button type="submit">Join League</button>
+                <button class="bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white py-2 px-4 border border-blue-500 hover:border-transparent rounded" type="submit">Join League</button>
             </form>
             </div>
         </div>

@@ -39,6 +39,8 @@ public static function displayNav()
           <a class="text-gray-500 hover:text-gray-700 px-6 py-6 rounded-md text-sm font-medium" href="/commissioner">Commissioner Portal</a>
           <a class="text-gray-500 hover:text-gray-700 px-6 py-6 rounded-md text-sm font-medium" href="/myteam">Team Management</a>
           <a class="text-gray-500 hover:text-gray-700 px-6 py-6 rounded-md text-sm font-medium" href="/leagues">Create/Join a League</a>
+          <a class="text-gray-500 hover:text-gray-700 px-6 py-6 rounded-md text-sm font-medium" href="/logout">Logout</a>
+
 
           <?php } ?>
         </div>

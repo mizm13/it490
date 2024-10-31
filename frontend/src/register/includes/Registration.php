@@ -23,7 +23,7 @@ abstract class Registration {
         <body>
         <h1 class="text-xl lg:text-4xl">NBA Fantasy Sports by JEMM</h1>
         <div>
-            <h2 class="text-xl lg:text-2xl">Team Owner Registration</h1>>
+            <h2 class="text-xl lg:text-2xl">Team Owner Registration</h1>
         </div>    
         <form id="registerForm" method="POST">
                 <div class="w-full max-w-md pt-20">
@@ -33,7 +33,7 @@ abstract class Registration {
                     </div>
                     <div class="md:flex md:items-start mb-6">
                         <label class="block text-gray-500 font-bold md:text-right mb-1 md:mb-0 pr-4" for="phone">Phone Number</label>
-                        <input class="appearance-none border-4 border-gray-500 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-purple-500" type="phone" id="phone" name="phone" required minlength="10" maxlength="10" placeholder="0001112222"/>
+                        <input class="appearance-none border-4 border-gray-500 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-purple-500" type="phone" id="phone" name="phone" minlength="10" maxlength="10" placeholder="0001112222"/>
                     </div>
                     <div class="md:flex md:items-start mb-6">
                         <label class="block text-gray-500 font-bold md:text-right mb-1 md:mb-0 pr-4" for="password">Password</label>
