@@ -42,7 +42,7 @@ abstract class WeeklyMatchups {
         try {
             $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
 
-            $request = ['type' => 'get_weekly_matchups', 'league_id' => $leagueId];
+            $request = ['type' => 'get_weekly_matchups', 'league_id' => $leagueId]; //idk what we use in processor for this
             $response = $rabbitClient->send_request(json_encode($request), 'application/json');
 
             if (isset($response['data'])) {
