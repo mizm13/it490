@@ -15,7 +15,7 @@ abstract class Draft {
      * @return void
      */
     function initiateDraft($request) {
-        $leagueId = $request['email'];
+        $email = $request['email'];
         $db = connectDB();
         $db->begin_transaction();
         try{
@@ -71,6 +71,13 @@ abstract class Draft {
             $updateLeagueQuery->bind_param("i", $leagueId);
             $updateLeagueQuery->execute();
             $updateLeagueQuery->close();
+
+            $response = [
+                'type'=> 'start_draft_response',
+                 'result' => 'true'
+            ];
+
+            return $response;
 
             $db->commit();
             $db->close();
@@ -218,7 +225,6 @@ abstract class Draft {
                     $updateLeagueQuery->execute();
                     $updateLeagueQuery->close();
                 } else {
-                    // Update to next round and pick
                     $updateLeagueQuery = $db->prepare("
                         UPDATE fantasy_leagues
                         SET current_round_number = ?, current_pick_number = ?
@@ -229,7 +235,6 @@ abstract class Draft {
                     $updateLeagueQuery->close();
                 }
             } else {
-                // Update to next pick in the same round
                 $updateLeagueQuery = $db->prepare("
                     UPDATE fantasy_leagues
                     SET current_pick_number = ?
@@ -240,18 +245,15 @@ abstract class Draft {
                 $updateLeagueQuery->close();
             }
     
-            // Commit the transaction
             $db->commit();
-    
-            // Return success
             $db->close();
+
             return [
                 'status' => 'success',
                 'message' => 'Player drafted successfully.'
             ];
     
         } catch (Exception $e) {
-            // Rollback the transaction
             $db->rollback();
             $db->close();
             return [
@@ -261,6 +263,40 @@ abstract class Draft {
         }
     }
     
+    public static function getDraftStatus($request){
+        $email = $request['email'];
+        $db = connectDB();
+        $db->begin_transaction();
+        /*Take user's email and check their commissioner status and obtain league*/
+        try{
+            $leagueQuery = $db->prepare("SELECT league_id FROM fantasy_leagues WHERE created_by = ?");
+            $leagueQuery->bind_param("s", $email);
+            $leagueQuery->execute();
+            $leagueQuery->bind_result($leagueId);
+            if (!$leagueQuery->fetch() || !$leagueId){
+                return ['result' => 'false','commissioner'=>'false'];
+            }
+            $leagueQuery->close();
+
+            $draftStatusQuery = $db->prepare("SELECT draft_started, draft_completed from fantasy_leagues WHERE league_id = ?");
+            $draftStatusQuery->bind_param("i", $leagueId);
+            $draftStatusQuery->execute();
+            $draftStatusQuery->bind_result($draftStarted, $draftCompleted);
+            $draftStatusQuery->close();
+            
+            $db->commit();
+            $db->close();
+
+            if($draftStarted && !$draftCompleted){
+                return ['result'=>'true'];
+            }
+            else{
+                return ['result'=>'false'];
+            }
+        }catch(Exception $e){
+            echo "An error occurred " . $e->getMessage();
+        }
+    }
     
 }
 ?>

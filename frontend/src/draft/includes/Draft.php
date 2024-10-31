@@ -16,15 +16,14 @@ abstract class Draft {
 
         <head>
         <?php echo \nba\src\lib\components\Head::displayHead();
-        echo \nba\src\lib\components\Nav::displayNav();
-            
-            //$session = \nba\src\lib\SessionHandler::getSession();
-
+            echo \nba\src\lib\components\Nav::displayNav();
+            $session = \nba\src\lib\SessionHandler::getSession();
+            $email = $session->getEmail();
             //test code
-            $token = \uniqid();
-            $timestamp = time() + 60000;
-            $session =  new \nba\shared\Session($token, $timestamp, 'jane@test.com');
-            //end test code
+            // $token = \uniqid();
+            // $timestamp = time() + 60000;
+            // $session =  new \nba\shared\Session($token, $timestamp, 'jane@test.com');
+            // //end test code
             if(!$session){
                 header('Location: /login');
                 exit();
@@ -51,15 +50,31 @@ abstract class Draft {
 // ];
    try{
     $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
-    /*TODO get leaguename somehow, maybe user entry?*/
-    $request = ['type' => 'get_draft_players', 'league' => 'ballin'];
-    error_log("request sent is ". print_r($request,true));
-    $response = $rabbitClient->send_request(json_encode($request), 'application/json');
-    error_log("response array is: ".print_r($response,true));
-    $responseData = ($response['data']);
-    error_log(" RESPONSE DATA IS ". print_r($responseData, true));
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        throw new \Exception('Invalid JSON response from RabbitMQ');
+    
+    $request = json_encode(['type' => 'check_draft_status', 'email'=>$email], true);
+    $response = $rabbitClient->send_request($request, 'application/json');
+    if($response['result']){
+        $leagueId = $response['league'];
+        $request = ['type' => 'get_draft_players', 'league' => $leagueId];
+        error_log("request sent is ". print_r($request,true));
+        $response = $rabbitClient->send_request(json_encode($request), 'application/json');
+        error_log("response array is: ".print_r($response,true));
+        $responseData = ($response['data']);
+        error_log(" RESPONSE DATA IS ". print_r($responseData, true));
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new \Exception('Invalid JSON response from RabbitMQ');
+        }
+    } else{
+        echo("There isn't currently a draft happening in this league");
+        ?>
+        <body>
+        <h2>Commissioners Can Start Their Draft</h2>
+        <form id="startDraftForm" method="POST">
+            <input type="hidden" name="start_draft" value="start_draft">
+        <button type="submit">Start Draft</button>
+        </form>
+        <body>
+        <?php
     }
 
     //return $responseData;
@@ -104,17 +119,38 @@ abstract class Draft {
     
         <?php
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            
-            try {
-                $selection = $_POST['selection'] ?? null;
-                $request = ['type' => 'add_player_draft', 'email'=> $uname, 'player' => $selection];
-                error_log("Draft request sending:  ".print_r($request,true));
-                $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini',"Authentication");
-                $response=$rabbitClient->send_request(json_encode($request), 'application/json');
-                error_log("Draft response received:  ".print_r($response,true));
-                echo "$selection drafted successfully.";
-            } catch(\Exception $e){
-                error_log("an error occured". $e->getMessage());
+            if(isset($_POST['selection'])){
+                try {
+                    $selection = $_POST['selection'] ?? null;
+                    $request = ['type' => 'add_player_draft', 'email'=> $uname, 'player' => $selection];
+                    error_log("Draft request sending:  ".print_r($request,true));
+                    $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini',"Authentication");
+                    $response=$rabbitClient->send_request(json_encode($request), 'application/json');
+                    error_log("Draft response received:  ".print_r($response,true));
+                    //echo "$selection drafted successfully.";
+                } catch(\Exception $e){
+                    error_log("an error occured". $e->getMessage());
+                }
+            } elseif(isset($_POST['start_draft'])){
+                try {
+                    error_log("Draft request sending:  ".print_r($request,true));
+                    $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini',"Authentication");
+                    $request = json_encode(['type'=>'start_draft', 'email'=>$email]. true);
+                    error_log("Draft response received:  ".print_r($response,true));
+                    $response = $rabbitClient->send_request($request, 'application/json');
+                    if($response['result']=='true'){
+                        echo "Draft started successfully.  Please reload to begin";
+                    } elseif($response['result']=='false' && $response['commissioner']=='false'){
+                        echo "Only Commissioner may start the draft.  
+                        Please contact your commissioner to begin your league's draft.";
+                    } else{
+                        echo "Error beginning draft, please reload and try again.";
+                    }
+                } catch(\Exception $e){
+                    error_log("an error occured". $e->getMessage());
+                } 
+            } else {
+                echo "Error loading draft page.  Please reload and try again.";
             }
         }
     }

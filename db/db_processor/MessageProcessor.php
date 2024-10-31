@@ -89,12 +89,17 @@ class MessageProcessor
                 
             case 'start_draft':
                 $draft= new Draft();
-                $draft->initiateDraft($request);
+                $this->response = $draft->initiateDraft($request);
+                break;
+
+            case 'check_draft_status':
+                $draft= new Draft();
+                $this->response = $draft->getDraftStatus($request);
                 break;
 
             case 'add_player_draft':
                 $draft = new Draft();
-                $draft->processDraftPick($request);
+                $this->response = $draft->processDraftPick($request);
                 break;
 
             case 'add_player_request':
