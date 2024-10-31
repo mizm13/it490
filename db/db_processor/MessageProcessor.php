@@ -88,17 +88,16 @@ class MessageProcessor
                 break;
                 
             case 'start_draft':
-                $draft= new Draft();
+                $draft= new ConcreteDraft();
                 $this->response = $draft->initiateDraft($request);
                 break;
 
             case 'check_draft_status':
-                $draft= new Draft();
-                $this->response = $draft->getDraftStatus($request);
+                $this->getDraftStatus($request);
                 break;
 
             case 'add_player_draft':
-                $draft = new Draft();
+                $draft = new ConcreteDraft();
                 $this->response = $draft->processDraftPick($request);
                 break;
 
@@ -1429,6 +1428,273 @@ class MessageProcessor
             $this->response=['type'=>'trade_player_response', 'result'=>'false'];
         }
     }
+
+    public static function getDraftStatus($request){
+        $email = $request['email'];
+        $db = connectDB();
+        
+        /*Take user's email and check their commissioner status and obtain league*/
+        try {
+            // Query to find league ID
+            $leagueQuery = $db->prepare("SELECT league_id FROM fantasy_leagues WHERE created_by = ?");
+            $leagueQuery->bind_param("s", $email);
+            
+            if (!$leagueQuery->execute()) {
+                echo "League query execution failed: " . $leagueQuery->error;
+                return ['result' => 'false', 'commissioner' => 'false'];
+            }
+            
+            $leagueQuery->bind_result($leagueId);
+            if (!$leagueQuery->fetch() || !$leagueId) {
+                echo "No league found for the commissioner.";
+                return ['result' => 'false', 'commissioner' => 'false'];
+            }
+            $leagueQuery->close();
+    
+            // Query to check draft status
+            $draftStatusQuery = $db->prepare("SELECT draft_started, draft_completed FROM fantasy_leagues WHERE league_id = ?");
+            $draftStatusQuery->bind_param("i", $leagueId);
+            
+            if (!$draftStatusQuery->execute()) {
+                echo "Draft status query execution failed: " . $draftStatusQuery->error;
+                return ['result' => 'false', 'commissioner' => 'false'];
+            }
+    
+            $draftStatusQuery->bind_result($draftStarted, $draftCompleted);
+            if (!$draftStatusQuery->fetch()) {
+                echo "No draft status found for the league.";
+                return ['result' => 'false', 'commissioner' => 'false'];
+            }
+            $draftStatusQuery->close();
+            
+            // Determine the draft status
+            if ($draftStarted && !$draftCompleted) {
+                return ['result' => 'true'];
+            } else {
+                return ['result' => 'false'];
+            }
+        } catch (Exception $e) {
+            echo "An error occurred: " . $e->getMessage();
+            return ['result' => 'false', 'commissioner' => 'false'];
+        } finally {
+            $db->close(); // Ensure the database connection is closed
+        }
+    }
+
+    private function processorGenerateMatchups($request) {
+        echo "Starting the matchup generation process...\n";
+        $league_id = $request['league_id'];
+        $week = $request['week'];
+    
+        echo "Connecting to the database...\n";
+        $db = connectDB();
+        if ($db === null) {
+            echo "Failed to connect to the database.\n";
+            $this->response = [
+                'type' => 'generate_matchups_response',
+                'result' => 'false',
+                'message' => 'Database connection failed.'
+            ];
+            return;
+        }
+        echo "Database connection successful.\n";
+        $db->begin_transaction();
+    
+        try {
+            // Step 1: Get all teams in the league
+            $teamsQuery = $db->prepare("SELECT team_id FROM fantasy_teams WHERE league_id = ?");
+            $teamsQuery->bind_param("i", $league_id);
+            $teamsQuery->execute();
+            $result = $teamsQuery->get_result();
+    
+            $teams = [];
+            while ($row = $result->fetch_assoc()) {
+                $teams[] = $row['team_id'];
+            }
+    
+            // Step 2: Generate matchups using round-robin logic
+            $numTeams = count($teams);
+            if ($numTeams < 2) {
+                throw new Exception("Not enough teams to generate matchups.");
+            }
+
+            // If the number of teams is odd, add a 'bye' slot
+            $isOdd = $numTeams % 2 !== 0;
+            if ($isOdd) {
+                $teams[] = null;  // Null represents the bye slot
+                $numTeams++;
+            }
+    
+            // Matchup generation with round-robin schedule
+            $matchups = [];
+            $rounds = $numTeams - 1;
+
+            for ($round = 0; $round < $rounds; $round++) {
+                for ($i = 0; $i < $numTeams / 2; $i++) {
+                    $team1 = $teams[$i];
+                    $team2 = $teams[$numTeams - 1 - $i];
+
+                    // Skip generating a matchup if one team has a bye
+                    if ($team1 !== null && $team2 !== null) {
+                        $matchups[] = [
+                            'team1_id' => $team1,
+                            'team2_id' => $team2
+                        ];
+                    }
+                }
+                // Rotate teams, keeping the first team in place
+                array_splice($teams, 1, 0, array_pop($teams));
+            }
+    
+            // Step 3: Insert generated matchups into the database
+            foreach ($matchups as $matchup) {
+                $matchupQuery = $db->prepare("INSERT INTO matchups (league_id, team1_id, team2_id, week) VALUES (?, ?, ?, ?)");
+                $matchupQuery->bind_param("iiii", $league_id, $matchup['team1_id'], $matchup['team2_id'], $week);
+    
+                if (!$matchupQuery->execute()) {
+                    throw new Exception("Failed to insert matchup: " . $matchupQuery->error);
+                }
+                $matchupQuery->close();
+            }
+    
+            echo "Matchups generated successfully for week $week.\n";
+            $this->response = [
+                'type' => 'generate_matchups_response',
+                'result' => 'true',
+                'message' => "Matchups generated successfully for league ID $league_id in week $week."
+            ];
+    
+            $db->commit();
+    
+        } catch (Exception $e) {
+            // Roll back the transaction if something failed
+            $db->rollback();
+            echo "Error occurred: " . $e->getMessage() . "\n";
+    
+            // Respond with failure
+            $this->response = [
+                'type' => 'generate_matchups_response',
+                'result' => 'false',
+                'message' => $e->getMessage()
+            ];
+        }
+        $db->close();
+    }
+
+    private function processorCalculateMatchupScores($request) {
+        echo "Starting the matchup scoring process...\n";
+        $matchup_id = $request['matchup_id'];
+    
+        echo "Connecting to the database...\n";
+        $db = connectDB();
+        if ($db === null) {
+            echo "Failed to connect to the database.\n";
+            $this->response = [
+                'type' => 'calculate_matchup_scores_response',
+                'result' => 'false',
+                'message' => 'Database connection failed.'
+            ];
+            return;
+        }
+        echo "Database connection successful.\n";
+        $db->begin_transaction();
+    
+        try {
+            // Step 1: Get the matchup details
+            $matchupQuery = $db->prepare("SELECT team1_id, team2_id, week FROM matchups WHERE matchup_id = ?");
+            $matchupQuery->bind_param("i", $matchup_id);
+            $matchupQuery->execute();
+            $result = $matchupQuery->get_result();
+    
+            if (!$matchup = $result->fetch_assoc()) {
+                throw new Exception("Matchup not found.");
+            }
+    
+            $team1_id = $matchup['team1_id'];
+            $team2_id = $matchup['team2_id'];
+            $week = $matchup['week'];
+    
+            // Step 2: Calculate scores for each team
+            $team1_score = $this->calculateTeamScores($team1_id, $week, $db);
+            $team2_score = $this->calculateTeamScores($team2_id, $week, $db);
+    
+            // Step 3: Update the matchup with the calculated scores
+            $this->updateMatchupScores($db, $matchup_id, $team1_score, $team2_score);
+    
+            echo "Scores calculated: Team 1 - $team1_score, Team 2 - $team2_score\n";
+            $this->response = [
+                'type' => 'calculate_matchup_scores_response',
+                'result' => 'true',
+                'message' => "Scores updated for matchup ID $matchup_id."
+            ];
+    
+            $db->commit();
+    
+        } catch (Exception $e) {
+            // Roll back the transaction if something failed
+            $db->rollback();
+            echo "Error occurred: " . $e->getMessage() . "\n";
+    
+            // Respond with failure
+            $this->response = [
+                'type' => 'calculate_matchup_scores_response',
+                'result' => 'false',
+                'message' => $e->getMessage()
+            ];
+        }
+        $db->close();
+    }
+    
+    // Method to calculate scores for a team
+    private function calculateTeamScores($team_id, $week, $db) {
+        $playersQuery = $db->prepare("SELECT player_id FROM fantasy_team_players WHERE team_id = ?");
+        $playersQuery->bind_param("i", $team_id);
+        $playersQuery->execute();
+        $result = $playersQuery->get_result();
+        
+        $totalScore = 0;
+    
+        while ($row = $result->fetch_assoc()) {
+            $player_id = $row['player_id'];
+    
+            // Get player statistics for the week
+            $statsQuery = $db->prepare("SELECT points_scored, rebounds, assists, steals, blocks FROM player_stats WHERE player_id = ? AND week = ?");
+            $statsQuery->bind_param("ii", $player_id, $week);
+            $statsQuery->execute();
+            $statsResult = $statsQuery->get_result();
+    
+            if ($statsRow = $statsResult->fetch_assoc()) {
+                // Calculate player's score
+                $totalScore += $this->calculatePlayerScore($statsRow);
+            }
+            $statsQuery->close();
+        }
+    
+        $playersQuery->close();
+        return $totalScore;
+    }
+    
+    // Method to calculate individual player score
+    private function calculatePlayerScore($stats) {
+        $points = 0;
+        $points += $stats['points_scored'] * 1;       // Points Scored
+        $points += $stats['rebounds'] * 1.25;          // Rebounds
+        $points += $stats['assists'] * 1.5;            // Assists
+        $points += $stats['steals'] * 2;               // Steals
+        $points += $stats['blocks'] * 2;               // Blocks
+        return $points;
+    }
+    
+    // Method to update matchup scores in the database
+    private function updateMatchupScores($db, $matchup_id, $team1_score, $team2_score) {
+        $updateQuery = "UPDATE matchups SET team1_score = ?, team2_score = ? WHERE matchup_id = ?";
+        $stmt = $db->prepare($updateQuery);
+        $stmt->bind_param("iii", $team1_score, $team2_score, $matchup_id);
+        $stmt->execute();
+        $stmt->close();
+    }
+    
+    
 
     /**
      * Get the response to send back to the client.

@@ -1,5 +1,7 @@
 <?php
 
+require_once('/home/enisakil/git/it490/db/connectDB.php');
+
 abstract class Draft {
     /* I pieced this together from various bits I found online such as:
     https://www.red-gate.com/simple-talk/databases/sql-server/t-sql-programming-sql-server/snake-draft-sorting-in-sql-server-part-1/
@@ -14,6 +16,9 @@ abstract class Draft {
      * @param mixed $request contains commissioner's email for verification
      * @return void
      */
+
+}
+class ConcreteDraft extends Draft {
     function initiateDraft($request) {
         $email = $request['email'];
         $db = connectDB();
@@ -28,6 +33,23 @@ abstract class Draft {
                 throw new Exception("Couldn't find a league for this commissioner");
             }
             $leagueQuery->close();
+
+            /* Check if the draft has already started */
+            $checkDraftQuery = $db->prepare("SELECT draft_started FROM fantasy_leagues WHERE league_id = ?");
+            $checkDraftQuery->bind_param("i", $leagueId);
+            $checkDraftQuery->execute();
+            $checkDraftQuery->bind_result($draftStarted);
+            $checkDraftQuery->fetch();
+            $checkDraftQuery->close();
+
+            if ($draftStarted) {
+                return [
+                    'type' => 'start_draft_response',
+                    'result' => 'false',
+                    'message' => 'Draft has already started.'
+                ];
+            }
+            
 
             /*teamsQuery gets all teams from the league for the draft */
             $teamsQuery = $db->prepare("SELECT team_id FROM fantasy_teams WHERE league_id = ?");
@@ -81,7 +103,7 @@ abstract class Draft {
 
             $db->commit();
             $db->close();
-        }catch(Exception $e){
+        } catch(Exception $e) {
             $db->rollback();
             $db->close();
             error_log($e);
@@ -266,37 +288,54 @@ abstract class Draft {
     public static function getDraftStatus($request){
         $email = $request['email'];
         $db = connectDB();
-        $db->begin_transaction();
+        
         /*Take user's email and check their commissioner status and obtain league*/
-        try{
+        try {
+            // Query to find league ID
             $leagueQuery = $db->prepare("SELECT league_id FROM fantasy_leagues WHERE created_by = ?");
             $leagueQuery->bind_param("s", $email);
-            $leagueQuery->execute();
+            
+            if (!$leagueQuery->execute()) {
+                echo "League query execution failed: " . $leagueQuery->error;
+                return ['result' => 'false', 'commissioner' => 'false'];
+            }
+            
             $leagueQuery->bind_result($leagueId);
-            if (!$leagueQuery->fetch() || !$leagueId){
-                return ['result' => 'false','commissioner'=>'false'];
+            if (!$leagueQuery->fetch() || !$leagueId) {
+                echo "No league found for the commissioner.";
+                return ['result' => 'false', 'commissioner' => 'false'];
             }
             $leagueQuery->close();
-
-            $draftStatusQuery = $db->prepare("SELECT draft_started, draft_completed from fantasy_leagues WHERE league_id = ?");
+    
+            // Query to check draft status
+            $draftStatusQuery = $db->prepare("SELECT draft_started, draft_completed FROM fantasy_leagues WHERE league_id = ?");
             $draftStatusQuery->bind_param("i", $leagueId);
-            $draftStatusQuery->execute();
+            
+            if (!$draftStatusQuery->execute()) {
+                echo "Draft status query execution failed: " . $draftStatusQuery->error;
+                return ['result' => 'false', 'commissioner' => 'false'];
+            }
+    
             $draftStatusQuery->bind_result($draftStarted, $draftCompleted);
+            if (!$draftStatusQuery->fetch()) {
+                echo "No draft status found for the league.";
+                return ['result' => 'false', 'commissioner' => 'false'];
+            }
             $draftStatusQuery->close();
             
-            $db->commit();
-            $db->close();
-
-            if($draftStarted && !$draftCompleted){
-                return ['result'=>'true'];
+            // Determine the draft status
+            if ($draftStarted && !$draftCompleted) {
+                return ['result' => 'true'];
+            } else {
+                return ['result' => 'false'];
             }
-            else{
-                return ['result'=>'false'];
-            }
-        }catch(Exception $e){
-            echo "An error occurred " . $e->getMessage();
+        } catch (Exception $e) {
+            echo "An error occurred: " . $e->getMessage();
+            return ['result' => 'false', 'commissioner' => 'false'];
+        } finally {
+            $db->close(); // Ensure the database connection is closed
         }
     }
+    }
     
-}
 ?>

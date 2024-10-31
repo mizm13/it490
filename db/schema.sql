@@ -132,6 +132,29 @@ CREATE TABLE standings (
     FOREIGN KEY (team_id) REFERENCES fantasy_teams(team_id)
 );
 
+CREATE TABLE draft_order (
+    league_id INT NOT NULL,
+    round_number INT NOT NULL,
+    pick_number INT NOT NULL,
+    team_id INT NOT NULL,
+    PRIMARY KEY (league_id, round_number, pick_number),
+    FOREIGN KEY (league_id) REFERENCES fantasy_leagues(league_id),
+    FOREIGN KEY (team_id) REFERENCES fantasy_teams(team_id)
+);
+
+CREATE TABLE draft_picks (
+    league_id INT NOT NULL,
+    team_id INT NOT NULL,
+    player_id INT NOT NULL,
+    pick_number INT NOT NULL,
+    round_number INT NOT NULL,
+    PRIMARY KEY (league_id, round_number, pick_number),
+    FOREIGN KEY (league_id) REFERENCES fantasy_leagues(league_id),
+    FOREIGN KEY (team_id) REFERENCES fantasy_teams(team_id),
+    FOREIGN KEY (player_id) REFERENCES players(player_id)
+);
+
+
 
 
 
