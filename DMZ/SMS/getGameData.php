@@ -51,7 +51,7 @@ if ($home_team && $visitor_team && !empty($contacts)) {
     foreach ($contacts as $contact) {
         $message = [
             'phone_number' => $contact['phone_number'],
-            'body' => "Hello {$contact['uname']}!, Check out the Latest Game Played! $home_team ($home_team_points) vs $visitor_team ($visitor_team_points)"
+            'body' => "Hi {$contact['uname']}! Check out the Latest Game Played! $home_team ($home_team_points) vs $visitor_team ($visitor_team_points)"
         ];
 
         // Publish message to SMS queue
