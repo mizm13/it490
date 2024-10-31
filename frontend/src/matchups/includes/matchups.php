@@ -15,11 +15,13 @@ abstract class WeeklyMatchups {
     // Check if user is logged in
     $session = \nba\src\lib\SessionHandler::getSession();
     if (!$session) {
+        error_log("User not logged in. Redirecting to login page.");
         header('Location: /login');
         exit();
     }
 
     $leagueId = $_SESSION['league_id']; // if league_id is stored in the session
+    error_log("Retrieved league ID from session: " . $leagueId);
     ?>
 
     <title>Weekly Matchups</title>
@@ -43,7 +45,9 @@ abstract class WeeklyMatchups {
             $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
 
             $request = ['type' => 'get_weekly_matchups', 'league_id' => $leagueId]; //idk what we use in processor for this
+            error_log("Sending request to RabbitMQ: " . json_encode($request));
             $response = $rabbitClient->send_request(json_encode($request), 'application/json');
+            error_log("Received response from RabbitMQ: " . json_encode($response));
 
             if (isset($response['data'])) {
                 foreach ($response['data'] as $matchup) {
@@ -55,11 +59,12 @@ abstract class WeeklyMatchups {
                     echo "</tr>";
                 }
             } else {
+                error_log("No matchup data found in the response.");
                 echo "<tr><td colspan='4'>No matchups found for this week.</td></tr>";
             }
         } catch (\Exception $e) {
             echo "<tr><td colspan='4'>Error loading matchups. Please try again later.</td></tr>";
-            error_log('Error in WeeklyMatchups.php: ' . $e->getMessage());
+            error_log('Error in matchups.php: ' . $e->getMessage());
         }
         ?>
     </tbody>
