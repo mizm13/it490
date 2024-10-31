@@ -51,7 +51,7 @@ class MessageProcessor
                 $this->processorAdminCheckRequest($request);
                 break;
             
-            case 'commissioner_check_request':
+            case 'commissioner_mgmt':
             $this->processorCommissionerMgmt($request);
             break;
 
@@ -87,12 +87,6 @@ class MessageProcessor
                 $this->processorPlayers2Draft($request);
                 break;
                 
-            /*TODO: get all teams and their players for a given league to 
-            enable trades */
-            case 'get_players_to_trade':
-                $this->processorPlayers2Trade($request);
-                break;
-
             case 'start_draft':
                 $draft= new Draft();
                 $draft->initiateDraft($request);
@@ -110,6 +104,11 @@ class MessageProcessor
             case 'remove_player_request':
                 $this->processorRemovePlayer($request);
                 break;
+
+            case 'trade_player_request':
+                $this->processorTradePlayers($request);
+                break;
+
             default:
                 $this->responseError = ['status' => 'error', 'message' => 'Unknown request type'];
                 echo "Unknown request type: {$request['type']}\n";
@@ -1246,18 +1245,17 @@ class MessageProcessor
         $db->close();
     }
        /**
-     * Removes a player, for trades or if dropped. Not for draft.
+     * Removes a player if dropped. Not for draft.
      *
      * @return void
      */
     public function processorRemovePlayer($request){
 
-        // Connect to the database
         echo "Connecting to the database...\n";
         $db = connectDB();
         if ($db === null) {
             $this->response = [
-                'type' => 'player_add_response',
+                'type' => 'remove_player_response',
                 'status' => 'error',
                 'message' => 'Database connection failed.'
             ];
@@ -1270,31 +1268,29 @@ class MessageProcessor
             $player = $request['player'];
             $team = $request['team'];
             $league = $request['league'];
-            echo "Set player add data\n";
+            echo "Set player remove data\n";
         } else {
             echo "Failed to set player remove data.\n";
             $this->response = [
-                'type' => 'player_remove_response',
+                'type' => 'remove_player_response',
                 'status' => 'error',
                 'message' => 'Missing data to handle removal.'
             ];
             return;
         }
 
-        // Prepare the SQL DELETE statement
     $sql = "DELETE FROM fantasy_team_players 
     WHERE player_id = ? 
     AND team_id = ? 
     AND league_id = ?";
 
-        // Prepare the SQL statement
         echo "Preparing the SQL statement...\n";
         $stmt = $db->prepare($sql);
         if (!$stmt) {
         echo "Error preparing statement: " . $db->error . "\n";
         $db->close();
         $this->response = [
-            'type' => 'player_remove_response',
+            'type' => 'remove_player_response',
             'result' => 'false',
             'message' => "Error, Player $player was not remove from team $team."
         ];
@@ -1302,7 +1298,6 @@ class MessageProcessor
         }
         echo "SQL statement prepared successfully.\n";
 
-        // Bind parameters
         echo "Binding parameters...\n";
         if (!$stmt->bind_param('iii', $player, $team, $league)) {
         echo "Error binding parameters: " . $stmt->error . "\n";
@@ -1317,11 +1312,9 @@ class MessageProcessor
         }
         echo "Parameters bound successfully.\n";
 
-        // Execute the SQL statement
         echo "Executing the SQL DELETE statement...\n";
         if ($stmt->execute()) {
             echo "Player removed team successfully.\n";
-            // Prepare successful response
             $this->response = [
                 'type' => 'player_remove_response',
                 'result' => 'true',
@@ -1329,7 +1322,6 @@ class MessageProcessor
                 ];
         } else {
             echo "Failed to insert session information: " . $db->error . "\n";
-            // Handle insert failure
             $this->response = [
                 'type' => 'player_remove_response',
                 'result' => 'false',
@@ -1337,9 +1329,102 @@ class MessageProcessor
             ];
         }
     $stmt->close();
-    $db->close();
-                
+    $db->close();            
     }
+
+    /**
+     * Takes two previously drafted players and their teams in a league
+     *  and swaps their team names, effectively trading their places.
+     *
+     * @param mixed $request contains player name X2, team name X2, and league ID
+     * @return void
+     */
+    function processorTradePlayers($request){
+        
+        $leagueId = $request['league'];
+        $player1 = $request['player1'];
+        $player2 = $request['player2'];
+        $team2 = $request['team1'];
+        $team2 = $request['team2'];
+
+        $db = connectDB();
+        if ($db === null) {
+            echo "Failed to connect to the database.\n";
+            return false;
+        }
+
+    
+        $db->begin_transaction();
+        /*team_player_id is the autoincrementing PK for players, need to use the PK for scalability*/
+        try {
+            $stmtPlayer1 = $db->prepare("
+                SELECT team_player_id FROM fantasy_team_players
+                WHERE player_id = ? AND team_id = ? AND league_id = ?
+                FOR UPDATE
+            ");
+            $stmtPlayer1->bind_param("iii", $player1, $team1, $leagueId);
+            $stmtPlayer1->execute();
+            $stmtPlayer1->store_result();
+            if ($stmtPlayer1->num_rows === 0) {
+                throw new Exception("Player 1 is not on Team 1 in the specified league.");
+            }
+            $stmtPlayer1->bind_result($teamPlayerId1);
+            $stmtPlayer1->fetch();
+            $stmtPlayer1->close();
+
+            $stmtPlayer2 = $db->prepare("
+                SELECT team_player_id FROM fantasy_team_players
+                WHERE player_id = ? AND team_id = ? AND league_id = ?
+                FOR UPDATE
+            ");
+            $stmtPlayer2->bind_param("iii", $player2, $team2, $leagueId);
+            $stmtPlayer2->execute();
+            $stmtPlayer2->store_result();
+            if ($stmtPlayer2->num_rows === 0) {
+                throw new Exception("Player 2 is not on Team 2 in the specified league.");
+            }
+            $stmtPlayer2->bind_result($teamPlayerId2);
+            $stmtPlayer2->fetch();
+            $stmtPlayer2->close();
+
+            /* change Player 1's team to Team 2*/
+            $updateStmt1 = $db->prepare("
+                UPDATE fantasy_team_players SET team_id = ?
+                WHERE team_player_id = ?
+            ");
+            $updateStmt1->bind_param("ii", $team2, $teamPlayerId1);
+            $updateStmt1->execute();
+            if ($updateStmt1->affected_rows === 0) {
+                throw new Exception("Failed to update Player 1's team.");
+            }
+            $updateStmt1->close();
+
+            /*Change player 2's team id to team 1*/
+            $updateStmt2 = $db->prepare("
+                UPDATE fantasy_team_players SET team_id = ?
+                WHERE team_player_id = ?
+            ");
+            $updateStmt2->bind_param("ii", $team1, $teamPlayerId2);
+            $updateStmt2->execute();
+            if ($updateStmt2->affected_rows === 0) {
+                throw new Exception("Failed to update Player 2's team.");
+            }
+            $updateStmt2->close();
+            
+            $db->commit();
+            $db->close();
+
+            $this->response=['type'=>'trade_player_response', 'result'=>'true'];
+
+        } catch (Exception $e) {
+            $db->rollback();
+            $db->close();
+            error_log("Error performing trade: " . $e->getMessage());
+            echo "Error performing trade: " . $e->getMessage() . "\n";
+            $this->response=['type'=>'trade_player_response', 'result'=>'false'];
+        }
+    }
+
     /**
      * Get the response to send back to the client.
      *
