@@ -5,7 +5,6 @@
  */
 require_once('/home/enisakil/git/it490/db/connectDB.php');
 require_once('/home/enisakil/git/it490/db/get_host_info.inc');
-require('Draft.php');
 
 class MessageProcessor
 {
@@ -88,8 +87,7 @@ class MessageProcessor
                 break;
                 
             case 'start_draft':
-                $draft= new ConcreteDraft();
-                $this->response = $draft->initiateDraft($request);
+                $this->initiateDraft($request);
                 break;
 
             case 'check_draft_status':
@@ -1429,157 +1427,309 @@ class MessageProcessor
         }
     }
 
-    public static function getDraftStatus($request){
-        $email = $request['email'];
-        $db = connectDB();
+   // function getDraftStatus($request){
+     //   $email = $request['email'];
+     //   echo $email;
+     //   $db = connectDB();
+
+     //   echo $email;
+        // Debugging output
+      //  echo "Successfully connected to the the database.\n";
         
         /*Take user's email and check their commissioner status and obtain league*/
-        try {
+      //  try {
             // Query to find league ID
-            $leagueQuery = $db->prepare("SELECT league_id FROM fantasy_leagues WHERE created_by = ?");
-            $leagueQuery->bind_param("s", $email);
+        //    $leagueQuery = $db->prepare("SELECT league_id FROM fantasy_leagues WHERE created_by = ?");
+        //    $leagueQuery->bind_param("s", $email);
             
-            if (!$leagueQuery->execute()) {
-                echo "League query execution failed: " . $leagueQuery->error;
-                return ['result' => 'false', 'commissioner' => 'false'];
-            }
+        //    if (!$leagueQuery->execute()) {
+          //      echo "League query execution failed: " . $leagueQuery->error;
+        //        $this->response = ['result' => 'false', 'commissioner' => 'false'];
+        //    }
             
-            $leagueQuery->bind_result($leagueId);
-            if (!$leagueQuery->fetch() || !$leagueId) {
-                echo "No league found for the commissioner.";
-                return ['result' => 'false', 'commissioner' => 'false'];
-            }
-            $leagueQuery->close();
+      //      $leagueQuery->bind_result($leagueId);
+      //      if (!$leagueQuery->fetch() || !$leagueId) {
+                //echo "No league found for the commissioner.";
+              //  $this->response = ['result' => 'false', 'commissioner' => 'false'];
+            //}
+            //$leagueQuery->close();
     
             // Query to check draft status
-            $draftStatusQuery = $db->prepare("SELECT draft_started, draft_completed FROM fantasy_leagues WHERE league_id = ?");
-            $draftStatusQuery->bind_param("i", $leagueId);
+          //  $draftStatusQuery = $db->prepare("SELECT draft_started, draft_completed FROM fantasy_leagues WHERE league_id = ?");
+           // $draftStatusQuery->bind_param("i", $leagueId);
             
-            if (!$draftStatusQuery->execute()) {
-                echo "Draft status query execution failed: " . $draftStatusQuery->error;
-                return ['result' => 'false', 'commissioner' => 'false'];
-            }
+           // if (!$draftStatusQuery->execute()) {
+              //  echo "Draft status query execution failed: " . $draftStatusQuery->error;
+            //    $this->response = ['result' => 'false', 'commissioner' => 'false'];
+           // }
     
-            $draftStatusQuery->bind_result($draftStarted, $draftCompleted);
-            if (!$draftStatusQuery->fetch()) {
-                echo "No draft status found for the league.";
-                return ['result' => 'false', 'commissioner' => 'false'];
-            }
-            $draftStatusQuery->close();
+         //   $draftStatusQuery->bind_result($draftStarted, $draftCompleted);
+         //   if (!$draftStatusQuery->fetch()) {
+        //        echo "No draft status found for the league.";
+        //        $this->response = ['result' => 'false', 'commissioner' => 'false'];
+       //     }
+      //      $draftStatusQuery->close();
             
             // Determine the draft status
-            if ($draftStarted && !$draftCompleted) {
-                return ['result' => 'true'];
-            } else {
-                return ['result' => 'false'];
-            }
-        } catch (Exception $e) {
-            echo "An error occurred: " . $e->getMessage();
-            return ['result' => 'false', 'commissioner' => 'false'];
-        } finally {
-            $db->close(); // Ensure the database connection is closed
-        }
-    }
+      //      if ($draftStarted && !$draftCompleted) {
+     //           $this->response = ['result' => 'true'];
+        //    } else {
+          //      $this->response = ['result' => 'false'];
+      //    //  }
+        //} catch (Exception $e) {
+            //echo "An error occurred: " . $e->getMessage();
+          //  $this->response = ['result' => 'false', 'commissioner' => 'false'];
+        //} finally {
+       //     $db->close(); // Ensure the database connection is closed
+      //  }
+    //}
 
-    private function processorGenerateMatchups($request) {
-        echo "Starting the matchup generation process...\n";
-        $league_id = $request['league_id'];
-        $week = $request['week'];
+    public static function getDraftStatus($request){
+        if (!isset($request['email']) || !filter_var($request['email'], FILTER_VALIDATE_EMAIL)) {
+            error_log("Invalid or missing email address.");
+            $response = ['result' => 'false', 'error' => 'Invalid or missing email address.'];
+            error_log("Response being sent: " . json_encode($response));
+            return $response;
+        }
     
-        echo "Connecting to the database...\n";
+        $email = $request['email'];
+        error_log("getDraftStatus called with email: $email");
+    
         $db = connectDB();
         if ($db === null) {
-            echo "Failed to connect to the database.\n";
-            $this->response = [
-                'type' => 'generate_matchups_response',
-                'result' => 'false',
-                'message' => 'Database connection failed.'
-            ];
-            return;
+            error_log("Database connection failed.");
+            return ['result' => 'false', 'error' => 'Database connection failed.'];
         }
-        echo "Database connection successful.\n";
         $db->begin_transaction();
     
         try {
-            // Step 1: Get all teams in the league
-            $teamsQuery = $db->prepare("SELECT team_id FROM fantasy_teams WHERE league_id = ?");
-            $teamsQuery->bind_param("i", $league_id);
-            $teamsQuery->execute();
-            $result = $teamsQuery->get_result();
+            // Query to get league_id
+            error_log("Preparing league query.");
+            $leagueQuery = $db->prepare("SELECT league_id FROM fantasy_leagues WHERE created_by = ?");
+            $leagueQuery->bind_param("s", $email);
+            $leagueQuery->execute();
+            $leagueQuery->bind_result($leagueId);
+            $leagueFetchResult = $leagueQuery->fetch();
+            $leagueQuery->close();
     
-            $teams = [];
-            while ($row = $result->fetch_assoc()) {
-                $teams[] = $row['team_id'];
+            error_log("League query executed. Fetch result: " . ($leagueFetchResult ? 'true' : 'false') . ", leagueId: $leagueId");
+    
+            if (!$leagueFetchResult || !$leagueId){
+                $db->commit();
+                $db->close();
+                error_log("User is not a commissioner or no league found.");
+                $response = ['result' => 'false', 'commissioner' => 'false'];
+                error_log("Response being sent: " . json_encode($response));
+                return $response;
             }
-    
-            // Step 2: Generate matchups using round-robin logic
-            $numTeams = count($teams);
-            if ($numTeams < 2) {
-                throw new Exception("Not enough teams to generate matchups.");
+            
+            // Query to get draft status
+            error_log("Preparing draft status query.");
+            $draftStatusQuery = $db->prepare("SELECT draft_started, draft_completed FROM fantasy_leagues WHERE league_id = ?");
+            $draftStatusQuery->bind_param("i", $leagueId);
+            $draftStatusQuery->execute();
+            $draftStatusQuery->bind_result($draftStarted, $draftCompleted);
+            $draftFetchResult = $draftStatusQuery->fetch();
+            $draftStatusQuery->close();
+
+            error_log("Draft status query executed. Fetch result: " . ($draftFetchResult ? 'true' : 'false') . ", draftStarted: $draftStarted, draftCompleted: $draftCompleted");
+
+            if (!$draftFetchResult) {
+                $db->commit();
+                $db->close();
+                error_log("No draft status found for the league.");
+                $response = ['result' => 'false', 'message' => 'No draft status found for the league.'];
+                error_log("Response being sent: " . json_encode($response));
+                return $response;
             }
 
-            // If the number of teams is odd, add a 'bye' slot
-            $isOdd = $numTeams % 2 !== 0;
-            if ($isOdd) {
-                $teams[] = null;  // Null represents the bye slot
-                $numTeams++;
-            }
-    
-            // Matchup generation with round-robin schedule
-            $matchups = [];
-            $rounds = $numTeams - 1;
+            // Cast draftStarted and draftCompleted to integers
+            $draftStarted = (int)$draftStarted;
+            $draftCompleted = (int)$draftCompleted;
 
-            for ($round = 0; $round < $rounds; $round++) {
-                for ($i = 0; $i < $numTeams / 2; $i++) {
-                    $team1 = $teams[$i];
-                    $team2 = $teams[$numTeams - 1 - $i];
+            if ($draftStarted === 1 && $draftCompleted === 0){
+                error_log("Draft started and not completed.");
+                $response = ['result' => 'true'];
+            } else {
+                error_log("Draft not started or already completed.");
+                $response = ['result' => 'false'];
+            }
 
-                    // Skip generating a matchup if one team has a bye
-                    if ($team1 !== null && $team2 !== null) {
-                        $matchups[] = [
-                            'team1_id' => $team1,
-                            'team2_id' => $team2
-                        ];
-                    }
-                }
-                // Rotate teams, keeping the first team in place
-                array_splice($teams, 1, 0, array_pop($teams));
-            }
-    
-            // Step 3: Insert generated matchups into the database
-            foreach ($matchups as $matchup) {
-                $matchupQuery = $db->prepare("INSERT INTO matchups (league_id, team1_id, team2_id, week) VALUES (?, ?, ?, ?)");
-                $matchupQuery->bind_param("iiii", $league_id, $matchup['team1_id'], $matchup['team2_id'], $week);
-    
-                if (!$matchupQuery->execute()) {
-                    throw new Exception("Failed to insert matchup: " . $matchupQuery->error);
-                }
-                $matchupQuery->close();
-            }
-    
-            echo "Matchups generated successfully for week $week.\n";
-            $this->response = [
-                'type' => 'generate_matchups_response',
-                'result' => 'true',
-                'message' => "Matchups generated successfully for league ID $league_id in week $week."
-            ];
-    
+            // Commit the transaction only after all operations
             $db->commit();
-    
+            error_log("Response being sent: " . json_encode($response));
+            return $response;
+
         } catch (Exception $e) {
-            // Roll back the transaction if something failed
             $db->rollback();
-            echo "Error occurred: " . $e->getMessage() . "\n";
+            error_log("An error occurred: " . $e->getMessage());
+            $response = ['result' => 'false', 'error' => 'An error occurred: ' . $e->getMessage()];
+            error_log("Response being sent: " . json_encode($response));
+            return $response;
+        } catch (Throwable $e) {
+            $db->rollback();
+            error_log("An unexpected error occurred: " . $e->getMessage());
+            $response = ['result' => 'false', 'error' => 'An unexpected error occurred: ' . $e->getMessage()];
+            error_log("Response being sent: " . json_encode($response));
+            return $response;
+        } finally {
+            // Close the connection only in the finally block
+            $db->close();
+        }
+    }
     
-            // Respond with failure
-            $this->response = [
-                'type' => 'generate_matchups_response',
+     
+    function initiateDraft($request) {
+        $email = $request['email'];
+        error_log("Initiating draft for email: $email");
+        $db = connectDB();
+        if ($db === null) {
+            error_log("Database connection failed.");
+            return [
+                'type' => 'start_draft_response',
                 'result' => 'false',
-                'message' => $e->getMessage()
+                'message' => 'Database connection failed.'
             ];
         }
-        $db->close();
+        $db->begin_transaction();
+            
+        try {
+            // Find league_id based on commissioner's email
+            $leagueQuery = $db->prepare("SELECT league_id FROM fantasy_leagues WHERE created_by = ?");
+            if ($leagueQuery === false) {
+                error_log("League query preparation failed: " . $db->error);
+                return [
+                    'type' => 'start_draft_response',
+                    'result' => 'false',
+                    'message' => 'Database query preparation failed.'
+                ];
+            }
+            $leagueQuery->bind_param("s", $email);
+            $leagueQuery->execute();
+            $leagueQuery->bind_result($leagueId);
+        
+            if (!$leagueQuery->fetch() || !$leagueId) {
+                error_log("Could not find a league for commissioner: $email");
+                return [
+                    'type' => 'start_draft_response',
+                    'result' => 'false',
+                    'message' => 'Could not find a league for this commissioner.'
+                ];
+            }
+            $leagueQuery->close();
+        
+            // Check if the draft has already started
+            $checkDraftQuery = $db->prepare("SELECT draft_started FROM fantasy_leagues WHERE league_id = ?");
+            if ($checkDraftQuery === false) {
+                error_log("Draft check query preparation failed: " . $db->error);
+                return [
+                    'type' => 'start_draft_response',
+                    'result' => 'false',
+                    'message' => 'Database query preparation failed.'
+                ];
+            }
+            $checkDraftQuery->bind_param("i", $leagueId);
+            $checkDraftQuery->execute();
+            $checkDraftQuery->bind_result($draftStarted);
+            $checkDraftQuery->fetch();
+            $checkDraftQuery->close();
+        
+            if ($draftStarted) {
+                error_log("Draft has already started for league_id: $leagueId");
+                return [
+                    'type' => 'start_draft_response',
+                    'result' => 'false',
+                    'message' => 'Draft has already started.'
+                ];
+            }
+        
+            // Get all teams from the league for the draft
+            $teamsQuery = $db->prepare("SELECT team_id FROM fantasy_teams WHERE league_id = ?");
+            if ($teamsQuery === false) {
+                error_log("Teams query preparation failed: " . $db->error);
+                return [
+                    'type' => 'start_draft_response',
+                    'result' => 'false',
+                    'message' => 'Database query preparation failed.'
+                ];
+            }
+            $teamsQuery->bind_param("i", $leagueId);
+            $teamsQuery->execute();
+            $result = $teamsQuery->get_result();
+            $teamIds = [];
+            while ($row = $result->fetch_assoc()) {
+                $teamIds[] = $row['team_id'];
+            }
+            $teamsQuery->close();
+        
+            // Randomize team IDs for the first round
+            shuffle($teamIds);
+            $numTeams = count($teamIds);
+            $totalRounds = 13;
+        
+            if (empty($teamIds)) {
+                error_log("No teams found for league_id: $leagueId");
+                return [
+                    'type' => 'start_draft_response',
+                    'result' => 'false',
+                    'message' => 'No teams found for this league.'
+                ];
+            }
+            // Insert random order into the draft_order table
+            $insertQuery = $db->prepare("INSERT INTO draft_order (league_id, round_number, pick_number, team_id) VALUES (?, ?, ?, ?)");
+            if ($insertQuery === false) {
+                error_log("Insert draft order query preparation failed: " . $db->error);
+                return [
+                    'type' => 'start_draft_response',
+                    'result' => 'false',
+                    'message' => 'Database query preparation failed.'
+                ];
+            }
+            for ($round = 1; $round <= $totalRounds; $round++) {
+                // Determine pick order for odd/even rounds
+                $order = ($round % 2 == 1) ? $teamIds : array_reverse($teamIds);
+                foreach ($order as $index => $teamId) {
+                    $pickNumber = $index + 1;
+                    $insertQuery->bind_param("iiii", $leagueId, $round, $pickNumber, $teamId);
+                    $insertQuery->execute();
+                }
+            }
+            $insertQuery->close();
+        
+            // Set draft_started to TRUE in fantasy_leagues table
+            $updateLeagueQuery = $db->prepare("UPDATE fantasy_leagues SET draft_started = TRUE WHERE league_id = ?");
+            if ($updateLeagueQuery === false) {
+                error_log("Update league query preparation failed: " . $db->error);
+                return [
+                    'type' => 'start_draft_response',
+                    'result' => 'false',
+                    'message' => 'Database query preparation failed.'
+                ];
+            }
+            $updateLeagueQuery->bind_param("i", $leagueId);
+            $updateLeagueQuery->execute();
+            $updateLeagueQuery->close();
+        
+            // Commit transaction and return success response
+            $db->commit();
+            error_log("Draft initiated successfully for league_id: $leagueId");
+            return [
+                'type' => 'start_draft_response',
+                'result' => 'true'
+            ];
+        } catch (Exception $e) {
+            $db->rollback();
+            error_log("Error in initiateDraft: " . $e->getMessage());
+            return [
+                'type' => 'start_draft_response',
+                'result' => 'false',
+                'message' => 'An error occurred while initiating the draft.'
+            ];
+        } finally {
+            $db->close();
+        }
     }
+        
 
     private function processorCalculateMatchupScores($request) {
         echo "Starting the matchup scoring process...\n";
