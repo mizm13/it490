@@ -34,7 +34,7 @@ abstract class Admin {
             error_log('Checking user for admin status');
             /*checks admin status here*/
             $request = ['type' => 'admin_check_request', 'email' => $session->getEmail()];
-            $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
+            $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Draft");
             $response = $rabbitClient->send_request(json_encode($request), 'application/json');
             $responseData = json_decode($response, true);
             $isAdmin = $responseData['result'];

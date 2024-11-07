@@ -21,7 +21,7 @@ abstract class Draft {
                     $selection = $_POST['selection'] ?? null;
                     $request = json_encode(['type' => 'add_player_draft', 'email'=> $email, 'player_id' => $selection]);
                     error_log("Draft request sending:  ".print_r($request,true));
-                    $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini',"Authentication");
+                    $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini',"Draft");
                     $response = $rabbitClient->send_request($request, 'application/json');
                     //$response = json_decode($responseJson, true);
                     error_log("Draft response received:  ".print_r($response,true));
@@ -31,7 +31,7 @@ abstract class Draft {
                 }
             } elseif(isset($_POST['start_draft'])){
                 try {
-                    $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini',"Authentication");
+                    $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini',"Draft");
                     $request = json_encode(['type'=>'start_draft', 'email'=>$email]);
                     error_log("Draft request sending:  ".print_r($request,true));
                     $response = $rabbitClient->send_request($request, 'application/json');
@@ -55,7 +55,7 @@ abstract class Draft {
         }
 
         try {
-            $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
+            $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Draft");
             $request = json_encode(['type' => 'check_draft_status', 'email'=>$email]);
             error_log("Request array is: ".print_r($request,true));
 
@@ -77,7 +77,7 @@ abstract class Draft {
                 } else {
                     throw new \Exception('No data received from RabbitMQ');
                 }
-            //}
+            }
         } catch(\Exception $e){
             echo("Unable to get draft status, please reload to try again");
             error_log('Error in Draft.php: ' . $e->getMessage());
@@ -126,7 +126,7 @@ abstract class Draft {
             </form> 
             </div>
         <?php
-        } else {
+        // } else {
             echo("<h2>There isn't currently a draft happening in this league</h2>");
             ?>
             <h2>Commissioners Can Start Their Draft</h2>

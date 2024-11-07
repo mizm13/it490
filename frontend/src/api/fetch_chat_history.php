@@ -9,7 +9,7 @@ function fetchChatHistory() {
 require_once __DIR__ . '/../../rabbit/RabbitMQClient.php';
 
 try{
- $rabbitClient = new RabbitMQClient(__DIR__.'/../../rabbit/host.ini', "Authentication");
+ $rabbitClient = new RabbitMQClient(__DIR__.'/../../rabbit/host.ini', "Draft");
 
  $request = ['type' => 'chat_history'];
  error_log("request sent is ". print_r($request,true));

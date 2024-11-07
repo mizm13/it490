@@ -41,7 +41,7 @@ abstract class SessionHandler {
     }
         error_log("sending validate request");
         $request = new \nba\shared\messaging\frontend\SessionValidateRequest('validate_request', $cookieValue);
-        $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../rabbit/host.ini', "Authentication");
+        $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../rabbit/host.ini', "Draft");
         $response = $rabbitClient->send_request(json_encode($request), 'application/json');
         //$responseData = json_decode($response, true);
         $responseData = $response;
@@ -78,7 +78,7 @@ abstract class SessionHandler {
         $cookieName = 'session_cookie';
         $request = new \nba\shared\messaging\frontend\LoginRequest($email, $hashedPassword, 'login_request');
         //error_log("Attempted to send json including:" . print_r($request, true));
-        $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../rabbit/host.ini', "Authentication");
+        $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../rabbit/host.ini', "Draft");
         $response = $rabbitClient->send_request(json_encode($request), 'application/json');
 
         if($response['type'] === 'login_response' &&  $response['result'] == true) {

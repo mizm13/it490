@@ -220,6 +220,7 @@ class ConcreteDraft extends Draft {
             $nextPickQuery->fetch();
             $nextPickQuery->close();
     
+            /*No picks left in round go to next round*/
             if ($nextPickExists == 0) {
                 
                 $nextRoundNumber++;

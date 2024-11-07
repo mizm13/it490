@@ -22,7 +22,7 @@ function sendMessage($uname, $msg) {
         ini_set('display_errors', 1);
         ini_set('display_startup_errors', 1);
         error_reporting(E_ALL);
-    $rabbitClient = new RabbitMQClient(__DIR__.'/../../rabbit/host.ini', "Authentication");
+    $rabbitClient = new RabbitMQClient(__DIR__.'/../../rabbit/host.ini', "Draft");
     
     $request = [
         'type' => 'chat_message',

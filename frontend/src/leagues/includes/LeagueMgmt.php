@@ -62,7 +62,7 @@ abstract class LeagueMgmt{
                         'invite_code' => $inviteCode,
                     ];
 
-                    $rabbitClient = new RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
+                    $rabbitClient = new RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Draft");
                     $response = $rabbitClient->send_request(json_encode($data), 'application/json');
                     error_log(print_r($response, true));
 

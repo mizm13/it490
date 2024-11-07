@@ -109,7 +109,7 @@ abstract class Registration {
                     'password' => $password, 
                     'phone' => $phone
                 ]);
-                    $client = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
+                    $client = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Draft");
                     error_log("sending " . print_r($json_message, true));
                     if($response = $client->send_request($json_message, 'application/json')) {
                         error_log("Message published successfuly: ".print_r($json_message, true));

@@ -25,12 +25,13 @@ abstract class Commissioner {
         <?php
         
         try{
-            $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");        
+            $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Draft");        
             $request = json_encode(['type'=>'commissioner_mgmt','email' => $email]);
             error_log("sending request" . print_r($request, true));
 
             $response = $rabbitClient->send_request($request, 'application/json'); 
             error_log("response received " . print_r($response, true));
+            error_log(print_r($response['data']));
             
             if($response['result']){
                 $playerData = [];
