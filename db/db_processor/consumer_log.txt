@@ -1,178 +1,67 @@
 
 
-request:   {"type":"validate_request","token":"67238d62c8a79"}
+request:   {"type":"validate_request","token":"672c447c3ba8f"}
 Array
 (
     [type] => validate_request
-    [token] => 67238d62c8a79
+    [token] => 672c447c3ba8f
 )
-Token received from request: 67238d62c8a79
+Token received from request: 672c447c3ba8f
 Successfully connected to database.
-Session token from DB: 67238d62c8a79
-request:   {"type":"validate_request","token":"67238d62c8a79"}
+Session token from DB: 672c447c3ba8f
+request:   {"type":"validate_request","token":"672c447c3ba8f"}
 Array
 (
     [type] => validate_request
-    [token] => 67238d62c8a79
+    [token] => 672c447c3ba8f
 )
-Token received from request: 67238d62c8a79
+Token received from request: 672c447c3ba8f
 Successfully connected to database.
-Session token from DB: 67238d62c8a79
-request:   {"type":"chat_history"}
+Session token from DB: 672c447c3ba8f
+request:   {"type":"commissioner_mgmt","email":"jane@test.com"}
 Array
 (
-    [type] => chat_history
+    [type] => commissioner_mgmt
+    [email] => jane@test.com
 )
 Connecting to the database...
 Successfully connected to database.
 Database connection successful.
-Preparing the SQL statement...
-SQL statement prepared successfully.
-Binding parameters...
-Parameters bound successfully.
-Executing the SQL statement...
-SQL statement executed successfully.
-Retrieving the results...
-Results retrieved successfully.
-Fetched message from jane@test.com at 2024-10-29 06:22:59: hello
-Fetched message from jane@test.com at 2024-10-29 06:22:58: hello
-Fetched message from jane@test.com at 2024-10-27 02:30:55: hello
-Fetched message from jane@test.com at 2024-10-27 02:24:09: hello
-Fetched message from jane@test.com at 2024-10-27 02:13:49: hello
-Fetched message from jane@test.com at 2024-10-27 02:13:47: hello
-Fetched message from jane@test.com at 2024-10-27 01:57:02: hello
-Fetched message from jane@test.com at 2024-10-27 01:57:00: hello
-Fetched message from jane@test.com at 2024-10-27 01:56:59: hello
-Fetched message from jane@test.com at 2024-10-27 01:56:35: hello
-Reversing the chat history order...
-
---- Chat History ---
-[2024-10-27 01:56:35] jane@test.com: hello
-[2024-10-27 01:56:59] jane@test.com: hello
-[2024-10-27 01:57:00] jane@test.com: hello
-[2024-10-27 01:57:02] jane@test.com: hello
-[2024-10-27 02:13:47] jane@test.com: hello
-[2024-10-27 02:13:49] jane@test.com: hello
-[2024-10-27 02:24:09] jane@test.com: hello
-[2024-10-27 02:30:55] jane@test.com: hello
-[2024-10-29 06:22:58] jane@test.com: hello
-[2024-10-29 06:22:59] jane@test.com: hello
-request:   {"type":"check_draft_status","email":"jane@test.com"}
+request:   {"type":"trade_player_request","league":15,"team1":"29","player1":"4","team2":"31","player2":"20"}
 Array
 (
-    [type] => check_draft_status
+    [type] => trade_player_request
+    [league] => 15
+    [team1] => 29
+    [player1] => 4
+    [team2] => 31
+    [player2] => 20
+)
+Successfully connected to database.
+request:   {"type":"validate_request","token":"672c447c3ba8f"}
+Array
+(
+    [type] => validate_request
+    [token] => 672c447c3ba8f
+)
+Token received from request: 672c447c3ba8f
+Successfully connected to database.
+Session token from DB: 672c447c3ba8f
+request:   {"type":"validate_request","token":"672c447c3ba8f"}
+Array
+(
+    [type] => validate_request
+    [token] => 672c447c3ba8f
+)
+Token received from request: 672c447c3ba8f
+Successfully connected to database.
+Session token from DB: 672c447c3ba8f
+request:   {"type":"commissioner_mgmt","email":"jane@test.com"}
+Array
+(
+    [type] => commissioner_mgmt
     [email] => jane@test.com
 )
-getDraftStatus called with email: jane@test.com
+Connecting to the database...
 Successfully connected to database.
-Preparing league query.
-League query executed. Fetch result: true, leagueId: 5
-Preparing draft status query.
-Draft status query executed. Fetch result: true, draftStarted: 1, draftCompleted: 0
-Draft started and not completed.
-Response being sent: {"result":"true"}
-request:   {"type":"validate_request","token":"67238d62c8a79"}
-Array
-(
-    [type] => validate_request
-    [token] => 67238d62c8a79
-)
-Token received from request: 67238d62c8a79
-Successfully connected to database.
-Session token from DB: 67238d62c8a79
-request:   {"type":"validate_request","token":"67238d62c8a79"}
-Array
-(
-    [type] => validate_request
-    [token] => 67238d62c8a79
-)
-Token received from request: 67238d62c8a79
-Successfully connected to database.
-Session token from DB: 67238d62c8a79
-request:   {"type":"start_draft","email":"jane@test.com"}
-Array
-(
-    [type] => start_draft
-    [email] => jane@test.com
-)
-Initiating draft for email: jane@test.com
-Successfully connected to database.
-Draft has already started for league_id: 5
-request:   {"type":"validate_request","token":"67238d62c8a79"}
-Array
-(
-    [type] => validate_request
-    [token] => 67238d62c8a79
-)
-Token received from request: 67238d62c8a79
-Successfully connected to database.
-Session token from DB: 67238d62c8a79
-request:   {"type":"start_draft","email":"jane@test.com"}
-Array
-(
-    [type] => start_draft
-    [email] => jane@test.com
-)
-Initiating draft for email: jane@test.com
-Successfully connected to database.
-Draft has already started for league_id: 5
-request:   {"type":"validate_request","token":"67238d62c8a79"}
-Array
-(
-    [type] => validate_request
-    [token] => 67238d62c8a79
-)
-Token received from request: 67238d62c8a79
-Successfully connected to database.
-Session token from DB: 67238d62c8a79
-request:   {"type":"start_draft","email":"jane@test.com"}
-Array
-(
-    [type] => start_draft
-    [email] => jane@test.com
-)
-Initiating draft for email: jane@test.com
-Successfully connected to database.
-Draft has already started for league_id: 5
-request:   {"type":"validate_request","token":"67238d62c8a79"}
-Array
-(
-    [type] => validate_request
-    [token] => 67238d62c8a79
-)
-Token received from request: 67238d62c8a79
-Successfully connected to database.
-Session token from DB: 67238d62c8a79
- => jane@test.com
-)
-getDraftStatus called with email: jane@test.com
-Successfully connected to database.
-Preparing league query.
-League query executed. Fetch result: true, leagueId: 5
-Preparing draft status query.
-Draft status query executed. Fetch result: true, draftStarted: 1, draftCompleted: 0
-Draft started and not completed.
-Response being sent: {"result":"true"}
-request:   {"type":"validate_request","token":"67238d62c8a79"}
-Array
-(
-    [type] => validate_request
-    [token] => 67238d62c8a79
-)
-Token received from request: 67238d62c8a79
-Successfully connected to database.
-Session token from DB: 67238d62c8a79
-request:   {"type":"check_draft_status","email":"jane@test.com"}
-Array
-(
-    [type] => check_draft_status
-    [email] => jane@test.com
-)
-getDraftStatus called with email: jane@test.com
-Successfully connected to database.
-Preparing league query.
-League query executed. Fetch result: true, leagueId: 5
-Preparing draft status query.
-Draft status query executed. Fetch result: true, draftStarted: 1, draftCompleted: 0
-Draft started and not completed.
-Response being sent: {"result":"true"}
+Database connection successful.
