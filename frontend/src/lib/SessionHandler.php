@@ -28,27 +28,27 @@ abstract class SessionHandler {
 
         //check for session cookie being set
         if (!isset($_COOKIE[$cookieName])) {
-            error_log("cookie is not set");
+            //error_log("cookie is not set");
             return false; // No cookie found, return false
         }
-        error_log("current cookie" . var_export($_COOKIE, true));
+        //error_log("current cookie" . var_export($_COOKIE, true));
         $cookieValue = $_COOKIE[$cookieName] ?? null;
-        error_log("the current cookie value: " .$cookieValue);
+        //error_log("the current cookie value: " .$cookieValue);
 
         if ($cookieValue === null) {
             return false;
         }//end if
     }
-        error_log("sending validate request");
+        //error_log("sending validate request");
         $request = new \nba\shared\messaging\frontend\SessionValidateRequest('validate_request', $cookieValue);
         $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../rabbit/host.ini', "Draft");
         $response = $rabbitClient->send_request(json_encode($request), 'application/json');
         //$responseData = json_decode($response, true);
         $responseData = $response;
-        error_log("response for validation request received: ". print_r($responseData, true));
+        //error_log("response for validation request received: ". print_r($responseData, true));
         if($responseData['type'] === 'SessionValidationResponse' && $responseData['status'] === 'success') {
             /*log success message and create session object*/
-            error_log($responseData['message']);
+            //error_log($responseData['message']);
             $session = new \nba\shared\Session(
                 $_COOKIE['session_cookie'],
                 $responseData['expiration_timestamp'],

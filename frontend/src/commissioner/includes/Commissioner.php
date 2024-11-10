@@ -31,12 +31,12 @@ abstract class Commissioner {
 
             $response = $rabbitClient->send_request($request, 'application/json'); 
             error_log("response received " . print_r($response, true));
-            error_log(print_r($response['data']));
+            error_log(print_r($response['data'], true));
             
-            if($response['result']){
-                $playerData = [];
+            if($response['result']=='true'){
                 $leagueId = $response['league'];
                 $playerData = $response['data'];
+                //$playerData = [$playerData];
             }else{
                 echo("You are not a commissioner. Please contact your league commissioner for assistance.");
             }
@@ -59,13 +59,14 @@ abstract class Commissioner {
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($playerData as $row): ?>
+                    <?php 
+                    foreach ($playerData as $row): ?>
                         <tr class="w-full text-sm bg-white border-b dark:bg-gray-800 dark:border-gray-700">
                             <td class="px-2 py-2 text-left">
-                                <input type="checkbox" name="selected_players[]" value="<?php echo $row['player'] . '|' . $row['team']; ?>">
+                                <input type="checkbox" name="selected_players[]" value="<?php echo ($row['player_id'] . '|' . $row['team_id']); ?>">
                             </td>
-                            <td class="px-2 py-2 text-left"><?php echo htmlspecialchars($row['player']);?></td>
-                            <td class="px-2 py-2 text-left"><?php echo htmlspecialchars($row['team']);?></td>
+                            <td class="px-2 py-2 text-left"><?php echo htmlspecialchars($row['player_name']);?></td>
+                            <td class="px-2 py-2 text-left"><?php echo htmlspecialchars($row['team_name']);?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -90,9 +91,10 @@ abstract class Commissioner {
 
                 if ($action === 'remove') {
                     if (count($selectedPlayers) !== 1) {
-                        echo "Error: You must ONLY one player to remove at a time.";
+                        echo "Error: You must ONLY choose one player to remove at a time.";
                     } else {
                         try{
+                            print_r($selectedPlayers[0], true);
                             list($player,$team) = explode('|', $selectedPlayers[0]);
                             
                             $removePlayerRequest = json_encode([
@@ -129,7 +131,8 @@ abstract class Commissioner {
                                 ]);
 
                             $response = $rabbitClient->send_request($tradePlayerRequest, 'application/json');
-                            if ($response['result']){
+                            error_log("Trade response " . print_r($response,true));
+                            if ($response['result'] == 'true'){
                                 echo"Players $player1 and $player2 traded successfully between teams $team1 and $team2.";
                             } else{
                                 echo"Failed to trade players $player1 and $player2 from teams $team1 and $team2.";

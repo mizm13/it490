@@ -25,6 +25,12 @@ abstract class Draft {
                     $response = $rabbitClient->send_request($request, 'application/json');
                     //$response = json_decode($responseJson, true);
                     error_log("Draft response received:  ".print_r($response,true));
+                    if($response['status']=='error'){
+                        echo($response['message']);
+                    } else{
+                        echo("Success " . $response['message']);
+
+                    }
                 } catch(\Exception $e){
                     error_log("An error occurred: ". $e->getMessage());
                     echo "An error occurred while drafting the player.";

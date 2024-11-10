@@ -19,6 +19,7 @@ abstract class Draft {
 
 }
 class ConcreteDraft extends Draft {
+    
     function initiateDraft($request) {
         $email = $request['email'];
         $db = connectDB();
