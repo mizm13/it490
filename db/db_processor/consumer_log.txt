@@ -1,2 +1,67 @@
 
 
+request:   {"type":"validate_request","token":"672c447c3ba8f"}
+Array
+(
+    [type] => validate_request
+    [token] => 672c447c3ba8f
+)
+Token received from request: 672c447c3ba8f
+Successfully connected to database.
+Session token from DB: 672c447c3ba8f
+request:   {"type":"validate_request","token":"672c447c3ba8f"}
+Array
+(
+    [type] => validate_request
+    [token] => 672c447c3ba8f
+)
+Token received from request: 672c447c3ba8f
+Successfully connected to database.
+Session token from DB: 672c447c3ba8f
+request:   {"type":"commissioner_mgmt","email":"jane@test.com"}
+Array
+(
+    [type] => commissioner_mgmt
+    [email] => jane@test.com
+)
+Connecting to the database...
+Successfully connected to database.
+Database connection successful.
+request:   {"type":"trade_player_request","league":15,"team1":"29","player1":"4","team2":"31","player2":"20"}
+Array
+(
+    [type] => trade_player_request
+    [league] => 15
+    [team1] => 29
+    [player1] => 4
+    [team2] => 31
+    [player2] => 20
+)
+Successfully connected to database.
+request:   {"type":"validate_request","token":"672c447c3ba8f"}
+Array
+(
+    [type] => validate_request
+    [token] => 672c447c3ba8f
+)
+Token received from request: 672c447c3ba8f
+Successfully connected to database.
+Session token from DB: 672c447c3ba8f
+request:   {"type":"validate_request","token":"672c447c3ba8f"}
+Array
+(
+    [type] => validate_request
+    [token] => 672c447c3ba8f
+)
+Token received from request: 672c447c3ba8f
+Successfully connected to database.
+Session token from DB: 672c447c3ba8f
+request:   {"type":"commissioner_mgmt","email":"jane@test.com"}
+Array
+(
+    [type] => commissioner_mgmt
+    [email] => jane@test.com
+)
+Connecting to the database...
+Successfully connected to database.
+Database connection successful.
