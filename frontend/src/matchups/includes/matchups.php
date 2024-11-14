@@ -20,7 +20,8 @@ abstract class WeeklyMatchups {
         exit();
     }
 
-    $leagueId = $_SESSION['league_id']; // if league_id is stored in the session
+    /*TODO: Need a processor method to return league_id for any user, currently only works for commissioners */
+    $leagueId = ''; /*possible issue with users and multiple leagues, need to display all their matchups across leagues */
     error_log("Retrieved league ID from session: " . $leagueId);
     ?>
 
@@ -42,13 +43,15 @@ abstract class WeeklyMatchups {
     <tbody>
         <?php
         try {
-            $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
+            $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Draft");
 
-            $request = ['type' => 'get_weekly_matchups', 'league_id' => $leagueId]; //idk what we use in processor for this
+            /*TODO: need a new processor to get the matchip data */
+            $request = ['type' => 'get_weekly_matchups', 'league' => $leagueId]; //idk what we use in processor for this
             error_log("Sending request to RabbitMQ: " . json_encode($request));
             $response = $rabbitClient->send_request(json_encode($request), 'application/json');
             error_log("Received response from RabbitMQ: " . json_encode($response));
 
+            /*TODO Edit based on how data is coming in */
             if (isset($response['data'])) {
                 foreach ($response['data'] as $matchup) {
                     echo "<tr class='w-full text-sm bg-white border-b dark:bg-gray-800 dark:border-gray-700'>";
