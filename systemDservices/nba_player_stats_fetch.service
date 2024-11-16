@@ -1,0 +1,13 @@
+[Unit]
+Description=Fetch NBA Player Stats for Each Game
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/php /home/mizm13/it490/DMZ/testAPI/nbaPlayerStatsEndpoint.php
+User=mizm13
+Group=mizm13
+Environment=HOME=/home/mizm13
+
+[Install]
+WantedBy=multi-user.target

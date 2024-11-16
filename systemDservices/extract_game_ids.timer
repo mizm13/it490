@@ -1,0 +1,9 @@
+[Unit]
+Description=Run Game ID Extraction at 9:05 PM EST every day
+
+[Timer]
+OnCalendar=*-*-* 02:05:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

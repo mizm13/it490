@@ -1,0 +1,10 @@
+[Unit]
+Description=Run NBA Games Fetch at 9 PM EST every day
+
+[Timer]
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+

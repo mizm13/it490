@@ -1,0 +1,13 @@
+[Unit]
+Description=Extract Game IDs from Fetched NBA Games
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /home/mizm13/it490/DMZ/testAPI/extract_game_ids.sh
+User=mizm13
+Group=mizm13
+Environment=HOME=/home/mizm13
+
+[Install]
+WantedBy=multi-user.target

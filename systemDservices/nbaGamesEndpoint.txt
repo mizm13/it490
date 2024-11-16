@@ -1,3 +1,0 @@
-[Unit]
-Description=Gets NBA Games played for specified date
-
