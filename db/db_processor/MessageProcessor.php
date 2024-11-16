@@ -95,7 +95,8 @@ class MessageProcessor
                 break;
 
             case 'add_player_draft':
-                $this->processDraftPick($request);
+                $draft = new ConcreteDraft();
+                $this->response = $draft->processDraftPick($request);
                 break;
 
             case 'add_player_request':
@@ -599,18 +600,7 @@ class MessageProcessor
         }
         $commishQuery->close();
 
-        // Fetch player and team information with the appropriate join
-        $teamsQuery = $db->prepare("
-            SELECT 
-                ftp.player_id, 
-                p.name AS player_name, 
-                ftp.team_id, 
-                t.team_name AS team_name
-            FROM fantasy_team_players ftp
-            JOIN players p ON ftp.player_id = p.player_id
-            JOIN fantasy_teams t ON ftp.team_id = t.team_id
-            WHERE ftp.league_id = ?
-        ");
+        $teamsQuery = $db->prepare("SELECT team_id, player_id from fantasy_team_players WHERE league_id = ?");
         $teamsQuery->bind_param("i", $leagueId);
         $teamsQuery->execute();
         $result = $teamsQuery->get_result();
@@ -622,7 +612,7 @@ class MessageProcessor
 
         $players = [];
         while($row = $result->fetch_assoc()){
-            $players[] = $row;
+            $players = $row;
         }
         $teamsQuery->close();
         $db->commit();
@@ -759,30 +749,14 @@ class MessageProcessor
         $leagueQuery->close();
         echo "League created successfully with ID: $newLeagueId\n";
 
-        // Step 2: Retrieve owner_id based on the email
-        echo "Retrieving owner_id based on user email...\n";
-        $ownerQuery = $db->prepare("SELECT user_id FROM users WHERE email = ?");
-        if (!$ownerQuery) {
-            throw new Exception("Failed to prepare owner ID query: " . $db->error);
-        }
-
-        $ownerQuery->bind_param("s", $ownerEmail);
-        $ownerQuery->execute();
-        $ownerQuery->bind_result($ownerId);
-        if (!$ownerQuery->fetch() || empty($ownerId)) {
-            throw new Exception("User not found.");
-        }
-        $ownerQuery->close();
-        echo "Owner ID: $ownerId\n";
-
         // Step 2: Create the user's team in the new league
         echo "Creating the user's team...\n";
-        $teamQuery = $db->prepare("INSERT INTO fantasy_teams (league_id, team_name, owner_email, owner_id) VALUES (?, ?, ?, ?)");
+        $teamQuery = $db->prepare("INSERT INTO fantasy_teams (league_id, team_name, owner_email) VALUES (?, ?, ?)");
         if (!$teamQuery) {
             throw new Exception("Failed to prepare team insert query: " . $db->error);
         }
 
-        $teamQuery->bind_param("issi", $newLeagueId, $teamName, $ownerEmail, $ownerId);
+        $teamQuery->bind_param("iss", $newLeagueId, $teamName, $ownerEmail);
         if (!$teamQuery->execute()) {
             throw new Exception("Failed to create the team: " . $teamQuery->error);
         }
@@ -857,24 +831,8 @@ class MessageProcessor
             $leagueQuery->close();
     
             echo "Invite code is valid. League ID: $leagueId\n";
-
-            // Step 2: Retrieve owner_id based on the email
-            echo "Retrieving owner_id based on user email...\n";
-            $ownerQuery = $db->prepare("SELECT user_id FROM users WHERE email = ?");
-            if (!$ownerQuery) {
-                throw new Exception("Failed to prepare owner ID query: " . $db->error);
-            }
-
-            $ownerQuery->bind_param("s", $userEmail);
-            $ownerQuery->execute();
-            $ownerQuery->bind_result($ownerId);
-            if (!$ownerQuery->fetch() || empty($ownerId)) {
-                throw new Exception("User not found.");
-            }
-            $ownerQuery->close();
-            echo "Owner ID: $ownerId\n";
     
-            // Step 3: Check if the user already has a team in this league
+            // Step 2: Check if the user already has a team in this league
             echo "Checking if the user already has a team in this league...\n";
             $checkTeamQuery = $db->prepare("SELECT team_id FROM fantasy_teams WHERE league_id = ? AND owner_email = ?");
             if (!$checkTeamQuery) {
@@ -892,12 +850,12 @@ class MessageProcessor
     
             // Step 3: Create the new team in the specified league
             echo "Creating the new team...\n";
-            $teamQuery = $db->prepare("INSERT INTO fantasy_teams (league_id, team_name, owner_email, owner_id) VALUES (?, ?, ?, ?)");
+            $teamQuery = $db->prepare("INSERT INTO fantasy_teams (league_id, team_name, owner_email) VALUES (?, ?, ?)");
             if (!$teamQuery) {
                 throw new Exception("Failed to prepare team insert query: " . $db->error);
             }
     
-            $teamQuery->bind_param("issi", $leagueId, $teamName, $userEmail, $ownerId);
+            $teamQuery->bind_param("iss", $leagueId, $teamName, $userEmail);
     
             if (!$teamQuery->execute()) {
                 throw new Exception("Failed to create the team: " . $teamQuery->error);
@@ -1123,10 +1081,48 @@ class MessageProcessor
         echo "Database connection successful.\n";  
 
         // Step 1: Retrieve the league_id based on the league_name
-        $leagueId = $request['league']; // Assuming the league name is passed in the request
+        $leagueName = $request['league']; // Assuming the league name is passed in the request
+
+        // Prepare the statement to get the league_id
+        $leagueStmt = $db->prepare("SELECT league_id FROM fantasy_leagues WHERE league_name = ?");
+        if (!$leagueStmt) {
+            echo "Error preparing league statement: " . $db->error . "\n";
+            $db->close();
+            return;
+        }
+
+        // Bind the league name parameter
+        if (!$leagueStmt->bind_param('s', $leagueName)) {
+            echo "Error binding league parameters: " . $leagueStmt->error . "\n";
+            $leagueStmt->close();
+            $db->close();
+            return;
+        }
+
+        // Execute the statement
+        if (!$leagueStmt->execute()) {
+            echo "Error executing league statement: " . $leagueStmt->error . "\n";
+            $leagueStmt->close();
+            $db->close();
+            return;
+        }
+
+        // Get the result for league_id
+        $leagueResult = $leagueStmt->get_result();
+        if ($leagueResult->num_rows === 0) {
+            echo "No league found with the name: " . $leagueName . "\n";
+            $leagueStmt->close();
+            $db->close();
+            return;
+        }
+
+        // Fetch the league_id
+        $leagueRow = $leagueResult->fetch_assoc();
+        $leagueId = $leagueRow['league_id'];
+        $leagueStmt->close();
 
         
-        // Prepare SQL to select only players who have not been drafted
+        /*TODO: might need to change this as db tables change*/
         $stmt = $db->prepare("SELECT p.player_id, p.name 
             FROM players p 
             WHERE p.player_id NOT IN (
@@ -1350,7 +1346,7 @@ class MessageProcessor
         $leagueId = $request['league'];
         $player1 = $request['player1'];
         $player2 = $request['player2'];
-        $team1 = $request['team1'];
+        $team2 = $request['team1'];
         $team2 = $request['team2'];
 
         $db = connectDB();
@@ -1488,7 +1484,7 @@ class MessageProcessor
       //  }
     //}
 
-    public function getDraftStatus($request){
+    public static function getDraftStatus($request){
         if (!isset($request['email']) || !filter_var($request['email'], FILTER_VALIDATE_EMAIL)) {
             error_log("Invalid or missing email address.");
             $response = ['result' => 'false', 'error' => 'Invalid or missing email address.'];
@@ -1519,11 +1515,12 @@ class MessageProcessor
             error_log("League query executed. Fetch result: " . ($leagueFetchResult ? 'true' : 'false') . ", leagueId: $leagueId");
     
             if (!$leagueFetchResult || !$leagueId){
-                $db->commit();      
+                $db->commit();
+                $db->close();
                 error_log("User is not a commissioner or no league found.");
-                $this->response = ['result' => 'true', 'commissioner' => 'false'];
-                error_log("Response being sent: " . json_encode($this->response));
-                return $this->response;
+                $response = ['result' => 'false', 'commissioner' => 'false'];
+                error_log("Response being sent: " . json_encode($response));
+                return $response;
             }
             
             // Query to get draft status
@@ -1541,52 +1538,38 @@ class MessageProcessor
                 $db->commit();
                 $db->close();
                 error_log("No draft status found for the league.");
-                $this->response = ['result' => 'false', 'message' => 'No draft status found for the league.'];
-                error_log("Response being sent: " . json_encode($this->response));
-                return $this->response;
+                $response = ['result' => 'false', 'message' => 'No draft status found for the league.'];
+                error_log("Response being sent: " . json_encode($response));
+                return $response;
             }
 
             // Cast draftStarted and draftCompleted to integers
             $draftStarted = (int)$draftStarted;
             $draftCompleted = (int)$draftCompleted;
 
-            if ($draftStarted === 1) {
-                if ($draftCompleted === 0) {
-                    error_log("Draft started and not completed.");
-                    $this->response = ['result' => 'true',
-                    'league' => $leagueId
-                    ]; // Allow access to the draft page
-                } else {
-                    error_log("Draft has been completed.");
-                    $this->response = [
-                        'result' => 'false', 
-                        'message' => 'The draft has already been completed.'
-                        
-                    ];
-                }
+            if ($draftStarted === 1 && $draftCompleted === 0){
+                error_log("Draft started and not completed.");
+                $response = ['result' => 'true'];
             } else {
-                error_log("Draft has not started.");
-                $this->response = [
-                    'result' => 'true', 
-                    'message' => 'The draft has not started yet. Please proceed to start'
-                ];
+                error_log("Draft not started or already completed.");
+                $response = ['result' => 'false'];
             }
-            
 
             // Commit the transaction only after all operations
             $db->commit();
-            return $this->response;
+            error_log("Response being sent: " . json_encode($response));
+            return $response;
 
         } catch (Exception $e) {
             $db->rollback();
             error_log("An error occurred: " . $e->getMessage());
-            $this->response = ['result' => 'false', 'error' => 'An error occurred: ' . $e->getMessage()];
+            $response = ['result' => 'false', 'error' => 'An error occurred: ' . $e->getMessage()];
             error_log("Response being sent: " . json_encode($response));
             return $response;
         } catch (Throwable $e) {
             $db->rollback();
             error_log("An unexpected error occurred: " . $e->getMessage());
-            $this->response = ['result' => 'false', 'error' => 'An unexpected error occurred: ' . $e->getMessage()];
+            $response = ['result' => 'false', 'error' => 'An unexpected error occurred: ' . $e->getMessage()];
             error_log("Response being sent: " . json_encode($response));
             return $response;
         } finally {
@@ -1602,12 +1585,11 @@ class MessageProcessor
         $db = connectDB();
         if ($db === null) {
             error_log("Database connection failed.");
-            $this->response = [
+            return [
                 'type' => 'start_draft_response',
                 'result' => 'false',
                 'message' => 'Database connection failed.'
             ];
-            return;
         }
         $db->begin_transaction();
             
@@ -1616,7 +1598,7 @@ class MessageProcessor
             $leagueQuery = $db->prepare("SELECT league_id FROM fantasy_leagues WHERE created_by = ?");
             if ($leagueQuery === false) {
                 error_log("League query preparation failed: " . $db->error);
-                $this->response = [
+                return [
                     'type' => 'start_draft_response',
                     'result' => 'false',
                     'message' => 'Database query preparation failed.'
@@ -1628,12 +1610,11 @@ class MessageProcessor
         
             if (!$leagueQuery->fetch() || !$leagueId) {
                 error_log("Could not find a league for commissioner: $email");
-                $this->response = [
+                return [
                     'type' => 'start_draft_response',
                     'result' => 'false',
                     'message' => 'Could not find a league for this commissioner.'
                 ];
-                return;
             }
             $leagueQuery->close();
         
@@ -1641,12 +1622,11 @@ class MessageProcessor
             $checkDraftQuery = $db->prepare("SELECT draft_started FROM fantasy_leagues WHERE league_id = ?");
             if ($checkDraftQuery === false) {
                 error_log("Draft check query preparation failed: " . $db->error);
-                $this->response = [
+                return [
                     'type' => 'start_draft_response',
                     'result' => 'false',
                     'message' => 'Database query preparation failed.'
                 ];
-                return;
             }
             $checkDraftQuery->bind_param("i", $leagueId);
             $checkDraftQuery->execute();
@@ -1656,81 +1636,22 @@ class MessageProcessor
         
             if ($draftStarted) {
                 error_log("Draft has already started for league_id: $leagueId");
-                $this->response = [
+                return [
                     'type' => 'start_draft_response',
-                    'result' => 'true',
+                    'result' => 'false',
                     'message' => 'Draft has already started.'
                 ];
-                return;
-            }
-
-            // Check if a draft order already exists
-            $draftOrderCheck = $db->prepare("SELECT COUNT(*) FROM draft_order WHERE league_id = ?");
-            $draftOrderCheck->bind_param("i", $leagueId);
-            $draftOrderCheck->execute();
-            $draftOrderCheck->bind_result($existingOrderCount);
-            $draftOrderCheck->fetch();
-            $draftOrderCheck->close();
-
-            if ($existingOrderCount > 0) {
-                // Draft order already exists, proceed with existing order
-                error_log("Draft order already exists for league_id: $leagueId, proceeding with existing order.");
-                $updateDraftStartedQuery = $db->prepare("UPDATE fantasy_leagues SET draft_started = TRUE WHERE league_id = ?");
-                if ($updateDraftStartedQuery === false) {
-                error_log("Update draft_started query preparation failed: " . $db->error);
-                $this->response = [
-                    'type' => 'start_draft_response',
-                    'result' => 'false',
-                    'message' => 'Database query preparation failed.'
-                ];
-                return;
-                }
-                $updateDraftStartedQuery->bind_param("i", $leagueId);
-
-
-                $updateDraftStartedQuery->execute();
-                    error_log("Execution failed: " . $updateDraftStartedQuery->error);
-                    $this->response = [
-                    'type' => 'start_draft_response',
-                    'result' => 'false',
-                    'message' => 'Draft status update execution failed.'
-                    ];
-                    $updateDraftStartedQuery->close();
-                    return;
-
-
-                // Check if the update affected any rows
-                if ($updateDraftStartedQuery->affected_rows === 0) {
-                    error_log("Update draft_started failed for league_id: $leagueId. No rows affected.");
-                    $this->response = [
-                        'type' => 'start_draft_response',
-                        'result' => 'false',
-                        'message' => 'Draft order already exists but was not updated.'
-                    ];
-                    $updateDraftStartedQuery->close();
-                    return;
-                    }
-
-                $updateDraftStartedQuery->close();
-
-                $this->response = [
-                    'type' => 'start_draft_response',
-                    'result' => 'true',
-                    'message' => 'Draft order already exists and has been preserved.'
-                ];
-                return;
             }
         
             // Get all teams from the league for the draft
             $teamsQuery = $db->prepare("SELECT team_id FROM fantasy_teams WHERE league_id = ?");
             if ($teamsQuery === false) {
                 error_log("Teams query preparation failed: " . $db->error);
-                $this->response = [
+                return [
                     'type' => 'start_draft_response',
                     'result' => 'false',
                     'message' => 'Database query preparation failed.'
                 ];
-                return;
             }
             $teamsQuery->bind_param("i", $leagueId);
             $teamsQuery->execute();
@@ -1748,23 +1669,21 @@ class MessageProcessor
         
             if (empty($teamIds)) {
                 error_log("No teams found for league_id: $leagueId");
-                $this->response = [
+                return [
                     'type' => 'start_draft_response',
                     'result' => 'false',
                     'message' => 'No teams found for this league.'
                 ];
-                return;
             }
             // Insert random order into the draft_order table
             $insertQuery = $db->prepare("INSERT INTO draft_order (league_id, round_number, pick_number, team_id) VALUES (?, ?, ?, ?)");
             if ($insertQuery === false) {
                 error_log("Insert draft order query preparation failed: " . $db->error);
-                $this->response = [
+                return [
                     'type' => 'start_draft_response',
                     'result' => 'false',
                     'message' => 'Database query preparation failed.'
                 ];
-                return;
             }
             for ($round = 1; $round <= $totalRounds; $round++) {
                 // Determine pick order for odd/even rounds
@@ -1781,12 +1700,11 @@ class MessageProcessor
             $updateLeagueQuery = $db->prepare("UPDATE fantasy_leagues SET draft_started = TRUE WHERE league_id = ?");
             if ($updateLeagueQuery === false) {
                 error_log("Update league query preparation failed: " . $db->error);
-                $this->response = [
+                return [
                     'type' => 'start_draft_response',
                     'result' => 'false',
                     'message' => 'Database query preparation failed.'
                 ];
-                return;
             }
             $updateLeagueQuery->bind_param("i", $leagueId);
             $updateLeagueQuery->execute();
@@ -1795,174 +1713,22 @@ class MessageProcessor
             // Commit transaction and return success response
             $db->commit();
             error_log("Draft initiated successfully for league_id: $leagueId");
-            $this->response = [
+            return [
                 'type' => 'start_draft_response',
                 'result' => 'true'
             ];
-            return;
         } catch (Exception $e) {
             $db->rollback();
             error_log("Error in initiateDraft: " . $e->getMessage());
-            $this->response = [
+            return [
                 'type' => 'start_draft_response',
                 'result' => 'false',
                 'message' => 'An error occurred while initiating the draft.'
             ];
-            return;
         } finally {
             $db->close();
         }
     }
-
-    function processDraftPick($request) {
-        $email = $request['email'];
-        $playerId = $request['player_id'];
-        $db = connectDB();
-    
-        try {
-            // Find user's id number from their email obtained via session info
-            $userQuery = $db->prepare("SELECT user_id FROM users WHERE email = ?");
-            $userQuery->bind_param("s", $email);
-            $userQuery->execute();
-            $userQuery->bind_result($userId);
-    
-            if (!$userQuery->fetch() || !$userId) {
-                throw new Exception("Couldn't find the user's id.");
-            }
-            $userQuery->close();
-    
-            // Find the user's league and team ids using owner/user id
-            $ownerQuery = $db->prepare("SELECT league_id, team_id FROM fantasy_teams WHERE owner_id = ?");
-            $ownerQuery->bind_param("i", $userId);
-            $ownerQuery->execute();
-            $ownerQuery->bind_result($leagueId, $teamId);
-    
-            if (!$ownerQuery->fetch() || !$leagueId || !$teamId) {
-                throw new Exception("Couldn't find a league or team for that owner ID");
-            }
-            $ownerQuery->close();
-    
-            // Get current draft status and who picks next
-            $draftQuery = $db->prepare("SELECT draft_started, draft_completed, current_round_number, current_pick_number FROM fantasy_leagues WHERE league_id = ?");
-            $draftQuery->bind_param("i", $leagueId);
-            $draftQuery->execute();
-            $draftQuery->bind_result($draftStarted, $draftCompleted, $currentRoundNumber, $currentPickNumber);
-    
-            if (!$draftQuery->fetch() || !$draftStarted || $draftCompleted) {
-                throw new Exception("Draft has not started, has already completed, or league not found.");
-            }
-            $draftQuery->close();
-    
-            // Find the team that should be picking
-            $orderQuery = $db->prepare("SELECT team_id FROM draft_order WHERE league_id = ? AND round_number = ? AND pick_number = ?");
-            $orderQuery->bind_param("iii", $leagueId, $currentRoundNumber, $currentPickNumber);
-            $orderQuery->execute();
-            $orderQuery->bind_result($expectedTeamId);
-    
-            if (!$orderQuery->fetch()) {
-                throw new Exception("Invalid draft order.");
-            }
-            $orderQuery->close();
-    
-            // Check the team's turn
-            if ($teamId != $expectedTeamId) {
-                throw new Exception("It's not your team's turn.");
-            }
-    
-            // Double Check if the player is still available
-            $playerCheckQuery = $db->prepare("SELECT COUNT(*) FROM draft_picks WHERE league_id = ? AND player_id = ?");
-            $playerCheckQuery->bind_param("ii", $leagueId, $playerId);
-            $playerCheckQuery->execute();
-            $playerCheckQuery->bind_result($playerAlreadyDrafted);
-            $playerCheckQuery->fetch();
-            $playerCheckQuery->close();
-    
-            if ($playerAlreadyDrafted > 0) {
-                throw new Exception("Player has already been drafted.");
-            }
-    
-            // Insert the draft pick
-            $insertPickQuery = $db->prepare("INSERT INTO draft_picks (league_id, team_id, player_id, pick_number, round_number) VALUES (?, ?, ?, ?, ?)");
-            $insertPickQuery->bind_param("iiiii", $leagueId, $teamId, $playerId, $currentPickNumber, $currentRoundNumber);
-            
-            if (!$insertPickQuery->execute()) {
-                throw new Exception("Failed to record draft pick.");
-            }
-            $insertPickQuery->close();
-    
-            // Add the player to the fantasy_team_players table
-            $addPlayerToTeamQuery = $db->prepare("INSERT INTO fantasy_team_players (team_id, player_id, league_id) VALUES (?, ?, ?)");
-            $addPlayerToTeamQuery->bind_param("iii", $teamId, $playerId, $leagueId);
-    
-            if (!$addPlayerToTeamQuery->execute()) {
-                throw new Exception("Failed to add player to fantasy team.");
-            }
-            $addPlayerToTeamQuery->close();
-    
-            // Move to the next pick
-            $nextPickNumber = $currentPickNumber + 1;
-            $nextRoundNumber = $currentRoundNumber;
-    
-            // Check if the next pick exists
-            $nextPickQuery = $db->prepare("SELECT COUNT(*) FROM draft_order WHERE league_id = ? AND round_number = ? AND pick_number = ?");
-            $nextPickQuery->bind_param("iii", $leagueId, $currentRoundNumber, $nextPickNumber);
-            $nextPickQuery->execute();
-            $nextPickQuery->bind_result($nextPickExists);
-            $nextPickQuery->fetch();
-            $nextPickQuery->close();
-    
-            if ($nextPickExists == 0) {
-                $nextRoundNumber++;
-                $nextPickNumber = 1;
-    
-                $nextRoundQuery = $db->prepare("SELECT COUNT(*) FROM draft_order WHERE league_id = ? AND round_number = ? AND pick_number = ?");
-                $nextRoundQuery->bind_param("iii", $leagueId, $nextRoundNumber, $nextPickNumber);
-                $nextRoundQuery->execute();
-                $nextRoundQuery->bind_result($nextRoundExists);
-                $nextRoundQuery->fetch();
-                $nextRoundQuery->close();
-    
-                if ($nextRoundExists == 0) {
-                    // If no rounds remain, draft is completed
-                    $updateLeagueQuery = $db->prepare("UPDATE fantasy_leagues SET draft_completed = TRUE WHERE league_id = ?");
-                    $updateLeagueQuery->bind_param("i", $leagueId);
-                    $updateLeagueQuery->execute();
-                    $updateLeagueQuery->close();
-                } else {
-                    $updateLeagueQuery = $db->prepare("UPDATE fantasy_leagues SET current_round_number = ?, current_pick_number = ? WHERE league_id = ?");
-                    $updateLeagueQuery->bind_param("iii", $nextRoundNumber, $nextPickNumber, $leagueId);
-                    $updateLeagueQuery->execute();
-                    $updateLeagueQuery->close();
-                }
-            } else {
-                $updateLeagueQuery = $db->prepare("UPDATE fantasy_leagues SET current_pick_number = ? WHERE league_id = ?");
-                $updateLeagueQuery->bind_param("ii", $nextPickNumber, $leagueId);
-                $updateLeagueQuery->execute();
-                $updateLeagueQuery->close();
-            }
-    
-            $db->close();
-    
-            // Set the response on success
-            $this->response = [
-                'status' => 'success',
-                'message' => 'Player drafted successfully.'
-            ];
-    
-        } catch (Exception $e) {
-            // Handle errors without rollback
-            error_log("Error processing draft pick: " . $e->getMessage());
-            $db->close();
-    
-            // Set the response on error
-            $this->response = [
-                'status' => 'error',
-                'message' => $e->getMessage()
-            ];
-        }
-    }
-    
-    
         
 
     private function processorCalculateMatchupScores($request) {
