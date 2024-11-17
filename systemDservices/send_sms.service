@@ -1,0 +1,17 @@
+[Unit]
+Description=Run SMS Consumer Script to Handle Incoming Messages
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/mizm13/it490/DMZ/SMS
+Restart=always
+RestartSec=3
+User=mizm13
+Group=mizm13
+EnvironmentFile=/home/mizm13/it490/DMZ/SMS/.env
+ExecStart=/usr/bin/php /home/mizm13/it490/DMZ/SMS/sendSMS.php
+
+[Install]
+WantedBy=multi-user.target
+
