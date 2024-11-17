@@ -6,7 +6,9 @@ require_once('../../vendor/autoload.php'); // Load Composer dependencies
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
 $dotenv->load(); // Load the .env file
 
-$apikey = $_ENV["TEXTBELTAPI_KEY"];
+#$apikey = $_ENV["TEXTBELTAPI_KEY"];
+$apikey = getenv("TEXTBELTAPI_KEY");
+echo $apikey;
 
 function sendSms($phoneNumber, $body) {
     global $apikey; 
