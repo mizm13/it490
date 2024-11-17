@@ -1,6 +1,6 @@
 #!/usr/bin/php
 <?php
-require_once('../../vendor/autoload.php'); // Load Composer dependencies
+require_once('/home/mizm13/it490/vendor/autoload.php'); // Load Composer dependencies
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
 $dotenv->load(); // Load the .env file
 

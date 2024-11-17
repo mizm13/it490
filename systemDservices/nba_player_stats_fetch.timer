@@ -2,7 +2,7 @@
 Description=Run Player Stats Fetch at 9:10 PM EST every day
 
 [Timer]
-OnCalendar=*-*-* 02:10:00
+OnCalendar=*-*-* 21:10:00
 Persistent=true
 
 [Install]
