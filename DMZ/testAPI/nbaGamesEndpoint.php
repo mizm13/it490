@@ -6,6 +6,9 @@ require_once('/home/mizm13/it490/vendor/autoload.php'); // Load Composer depende
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
 $dotenv->load(); // Load the .env file
 
+//echo "Host: " . $_ENV['X_RAPIDAPI_HOST'] . "\n";
+//echo "Key: " . $_ENV['X_RAPIDAPI_KEY'] . "\n";
+
 require_once('path.inc');
 require_once('get_host_info.inc');
 require_once('rabbitMQLib.inc');
