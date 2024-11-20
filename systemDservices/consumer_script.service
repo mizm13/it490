@@ -1,0 +1,15 @@
+[Unit]
+Description=Run Consumer Script to Process RabbitMQ Messages
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/php /home/enisakil/it490/db/db_processor/consumer_script.php
+WorkingDirectory=/home/enisakil/it490/db/db_processor
+Restart=always
+RestartSec=3
+User=enisakil
+Group=enisakil
+
+[Install]
+WantedBy=multi-user.target

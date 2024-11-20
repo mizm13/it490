@@ -1,0 +1,15 @@
+[Unit]
+Description=API Consumer Script Service
+After=network.target
+
+[Service]
+User=enisakil
+Group=enisakil
+ExecStart=/usr/bin/php /home/enisakil/it490/DMZ/testapi/api_consumer_script.php
+Restart=always
+RestartSec=5
+WorkingDirectory=/home/enisakil/it490/DMZ/testapi
+Environment=PHP_MEMORY_LIMIT=512M
+
+[Install]
+WantedBy=multi-user.target
