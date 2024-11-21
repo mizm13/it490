@@ -4,17 +4,17 @@ require_once('../../vendor/autoload.php'); // Load Composer dependencies
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
 $dotenv->load(); // Load the .env file
 
-use Twilio\Rest\Client;
+#use Twilio\Rest\Client;
 
 
 $apikey = $_ENV["TEXTBELTAPI_KEY"];
-$phonenum = $_ENV["PHONE_NUM"];
+#$phonenum = $_ENV["PHONE_NUM"];
 
 
 $ch = curl_init('https://textbelt.com/text');
 $data = array(
-  'phone' => $phonenum,
-  'message' => 'Hello IT490 world ',
+  'phone' => 2014497700,
+  'message' => 'Hello IT490 world 123',
   'key' => $apikey,
 );
 
