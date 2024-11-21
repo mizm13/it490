@@ -1,0 +1,14 @@
+[Unit]
+Description=Run getGameData.php Script to Fetch Game Data and Send SMS
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/php /home/enisakil/git/it490/db/getGameData.php
+Restart=on-failure
+User=enisakil
+Group=enisakil
+Environment=HOME=/home/enisakil
+
+[Install]
+WantedBy=multi-user.target
