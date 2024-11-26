@@ -18,11 +18,9 @@ abstract class WeeklyMatchups {
         error_log("User not logged in. Redirecting to login page.");
         header('Location: /login');
         exit();
+    } else {
+        $email = htmlspecialchars($session->getEmail(), ENT_QUOTES, 'UTF-8');
     }
-
-    /*TODO: Need a processor method to return league_id for any user, currently only works for commissioners */
-    $leagueId = ''; /*possible issue with users and multiple leagues, need to display all their matchups across leagues */
-    error_log("Retrieved league ID from session: " . $leagueId);
     ?>
 
     <title>Weekly Matchups</title>
@@ -45,8 +43,8 @@ abstract class WeeklyMatchups {
         try {
             $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Draft");
 
-            /*TODO: need a new processor to get the matchip data */
-            $request = ['type' => 'get_weekly_matchups', 'league' => $leagueId]; //idk what we use in processor for this
+            /*TODO: need a new processor to get the matchup data */
+            $request = ['type' => 'get_weekly_matchups', 'email' => $email];
             error_log("Sending request to RabbitMQ: " . json_encode($request));
             $response = $rabbitClient->send_request(json_encode($request), 'application/json');
             error_log("Received response from RabbitMQ: " . json_encode($response));
@@ -54,20 +52,24 @@ abstract class WeeklyMatchups {
             /*TODO Edit based on how data is coming in */
             if (isset($response['data'])) {
                 foreach ($response['data'] as $matchup) {
-                    echo "<tr class='w-full text-sm bg-white border-b dark:bg-gray-800 dark:border-gray-700'>";
-                    echo "<td class='px-2 py-2 text-left'>" . htmlspecialchars($matchup['week']) . "</td>";
-                    echo "<td class='px-2 py-2 text-left'>" . htmlspecialchars($matchup['team1_name']) . "</td>";
-                    echo "<td class='px-2 py-2 text-left'>" . htmlspecialchars($matchup['team2_name']) . "</td>";
-                    echo "<td class='px-2 py-2 text-left'>" . htmlspecialchars($matchup['team1_score']) . " - " . htmlspecialchars($matchup['team2_score']) . "</td>";
-                    echo "</tr>";
+                    ?>
+                    <tr class='w-full text-sm bg-white border-b dark:bg-gray-800 dark:border-gray-700'>
+                    <td class='px-2 py-2 text-left'> <?php echo(htmlspecialchars($matchup['week']));?> </td>
+                    <td class='px-2 py-2 text-left'> <?php echo(htmlspecialchars($matchup['team1_name'])); ?> </td>
+                    <td class='px-2 py-2 text-left'> <?php echo(htmlspecialchars($matchup['team2_name'])); ?> </td>
+                    <td class='px-2 py-2 text-left'> <?php echo((htmlspecialchars($matchup['team1_score'])) . " - " . (htmlspecialchars($matchup['team2_score']))); ?></td>
+                    </tr>
+                <?php 
                 }
             } else {
-                error_log("No matchup data found in the response.");
-                echo "<tr><td colspan='4'>No matchups found for this week.</td></tr>";
+                error_log("No matchup data found in the response."); ?>
+                <tr><td colspan='4'> <?php echo "No matchups found for this week.";?></td></tr>
+                <?php
             }
         } catch (\Exception $e) {
-            echo "<tr><td colspan='4'>Error loading matchups. Please try again later.</td></tr>";
-            error_log('Error in matchups.php: ' . $e->getMessage());
+            ?>
+            <tr><td colspan='4'> <?php echo "Error loading matchups. Please try again later."; ?> </td></tr>
+            <?php error_log('Error in matchups.php: ' . $e->getMessage());
         }
         ?>
     </tbody>

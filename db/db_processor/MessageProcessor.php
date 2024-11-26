@@ -109,6 +109,22 @@ class MessageProcessor
             case 'trade_player_request':
                 $this->processorTradePlayers($request);
                 break;
+            
+            case 'weekly_matchup_request':
+                $this->processor_get_weekly_matchup($request);
+                break;
+
+            case 'all_matchups_request':
+                $this->processor_get_all_matchups($request);
+                break;
+
+            case 'team_data_request':
+                $this->processor_get_team_data($request);
+                break;
+        
+            case 'league_standings_request':
+                $this->processor_get_league_standings($request);
+                break;
 
             default:
                 $this->responseError = ['status' => 'error', 'message' => 'Unknown request type'];
@@ -1188,9 +1204,9 @@ class MessageProcessor
     }
 
     /**
-     * Undocumented function
+     * Adds a player to a team.
      *
-     * @return void
+     * @return mixed $request Contains player info, team id, and league id.
      */
     public function processorAddPlayer($request){
 
@@ -1961,124 +1977,6 @@ class MessageProcessor
             ];
         }
     }
-    
-    
-        
-
-    private function processorCalculateMatchupScores($request) {
-        echo "Starting the matchup scoring process...\n";
-        $matchup_id = $request['matchup_id'];
-    
-        echo "Connecting to the database...\n";
-        $db = connectDB();
-        if ($db === null) {
-            echo "Failed to connect to the database.\n";
-            $this->response = [
-                'type' => 'calculate_matchup_scores_response',
-                'result' => 'false',
-                'message' => 'Database connection failed.'
-            ];
-            return;
-        }
-        echo "Database connection successful.\n";
-        $db->begin_transaction();
-    
-        try {
-            // Step 1: Get the matchup details
-            $matchupQuery = $db->prepare("SELECT team1_id, team2_id, week FROM matchups WHERE matchup_id = ?");
-            $matchupQuery->bind_param("i", $matchup_id);
-            $matchupQuery->execute();
-            $result = $matchupQuery->get_result();
-    
-            if (!$matchup = $result->fetch_assoc()) {
-                throw new Exception("Matchup not found.");
-            }
-    
-            $team1_id = $matchup['team1_id'];
-            $team2_id = $matchup['team2_id'];
-            $week = $matchup['week'];
-    
-            // Step 2: Calculate scores for each team
-            $team1_score = $this->calculateTeamScores($team1_id, $week, $db);
-            $team2_score = $this->calculateTeamScores($team2_id, $week, $db);
-    
-            // Step 3: Update the matchup with the calculated scores
-            $this->updateMatchupScores($db, $matchup_id, $team1_score, $team2_score);
-    
-            echo "Scores calculated: Team 1 - $team1_score, Team 2 - $team2_score\n";
-            $this->response = [
-                'type' => 'calculate_matchup_scores_response',
-                'result' => 'true',
-                'message' => "Scores updated for matchup ID $matchup_id."
-            ];
-    
-            $db->commit();
-    
-        } catch (Exception $e) {
-            // Roll back the transaction if something failed
-            $db->rollback();
-            echo "Error occurred: " . $e->getMessage() . "\n";
-    
-            // Respond with failure
-            $this->response = [
-                'type' => 'calculate_matchup_scores_response',
-                'result' => 'false',
-                'message' => $e->getMessage()
-            ];
-        }
-        $db->close();
-    }
-    
-    // Method to calculate scores for a team
-    private function calculateTeamScores($team_id, $week, $db) {
-        $playersQuery = $db->prepare("SELECT player_id FROM fantasy_team_players WHERE team_id = ?");
-        $playersQuery->bind_param("i", $team_id);
-        $playersQuery->execute();
-        $result = $playersQuery->get_result();
-        
-        $totalScore = 0;
-    
-        while ($row = $result->fetch_assoc()) {
-            $player_id = $row['player_id'];
-    
-            // Get player statistics for the week
-            $statsQuery = $db->prepare("SELECT points_scored, rebounds, assists, steals, blocks FROM player_stats WHERE player_id = ? AND week = ?");
-            $statsQuery->bind_param("ii", $player_id, $week);
-            $statsQuery->execute();
-            $statsResult = $statsQuery->get_result();
-    
-            if ($statsRow = $statsResult->fetch_assoc()) {
-                // Calculate player's score
-                $totalScore += $this->calculatePlayerScore($statsRow);
-            }
-            $statsQuery->close();
-        }
-    
-        $playersQuery->close();
-        return $totalScore;
-    }
-    
-    // Method to calculate individual player score
-    private function calculatePlayerScore($stats) {
-        $points = 0;
-        $points += $stats['points_scored'] * 1;       // Points Scored
-        $points += $stats['rebounds'] * 1.25;          // Rebounds
-        $points += $stats['assists'] * 1.5;            // Assists
-        $points += $stats['steals'] * 2;               // Steals
-        $points += $stats['blocks'] * 2;               // Blocks
-        return $points;
-    }
-    
-    // Method to update matchup scores in the database
-    private function updateMatchupScores($db, $matchup_id, $team1_score, $team2_score) {
-        $updateQuery = "UPDATE matchups SET team1_score = ?, team2_score = ? WHERE matchup_id = ?";
-        $stmt = $db->prepare($updateQuery);
-        $stmt->bind_param("iii", $team1_score, $team2_score, $matchup_id);
-        $stmt->execute();
-        $stmt->close();
-    }
-    
-    
 
     /**
      * Get the response to send back to the client.

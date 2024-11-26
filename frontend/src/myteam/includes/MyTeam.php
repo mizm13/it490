@@ -10,25 +10,16 @@ abstract class MyTeam {
     public static function displayMyTeam() {
 
 ?>
-
-    <!DOCTYPE html>
-    <html lang='en'>
-
         <head>
         <?php echo \nba\src\lib\components\Head::displayHead();
         echo \nba\src\lib\components\Nav::displayNav();
             $session = \nba\src\lib\SessionHandler::getSession();
 
-            //test code
-            // $token = \uniqid();
-            // $timestamp = time() + 60000;
-            // $session =  new \nba\shared\Session($token, $timestamp, 'jane@test.com');
-            //end test code
             if(!$session){
                 header('Location: /login');
                 exit();
             } else {
-                $uname = htmlspecialchars($session->getEmail(), ENT_QUOTES, 'UTF-8');
+                $email = htmlspecialchars($session->getEmail(), ENT_QUOTES, 'UTF-8');
                 // $fullEmail = htmlspecialchars($session->getEmail(), ENT_QUOTES, 'UTF-8');
                 // $atPos = strpos($fullEmail, '@');
                 // if ($atPos !== false) {
@@ -39,8 +30,10 @@ abstract class MyTeam {
             ?>
             <title>My Team</title>
             </head>
+
 <?php
-/* TODO add scoring data to backend, add score aggregation across weeks to compute wins v losses(possible problem with historical), create processor that returns user's team with stats */
+/* TODO add scoring data to backend, add score aggregation across weeks to compute 
+    wins v losses(possible problem with historical), create processor that returns user's team with stats */
 /* TODO show historic wins and losses across league */
 try{
     $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Draft");        
