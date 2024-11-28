@@ -18,11 +18,15 @@ $sesClient = new SesClient([
     ]
 ]);
 
+$code = "5342";
+$user = "Bob";
 
 $senderEmail = $_ENV['SENDER_EMAIL']; 
 $recipientEmail = $_ENV['RECIPIENT_EMAIL']; 
-$subject = 'Test Email from AWS SES IT490';
-$bodyText = 'Hello, this is a test email sent via AWS SES and PHP for IT490!';
+#$subject = 'Test Email from AWS SES IT490';
+$subject = 'Your Verification Code for Login';
+#$bodyText = 'Hello, this is a test email sent via AWS SES and PHP for IT490!';
+$bodyText = 'Hi ' . $user . ', <br>Your verification code is <strong>' . $code . ' </strong>.<br>Please enter this code to complete your login. For security reasons, do not share this code with anyone.';
 
 try {
     // Send the email
@@ -38,7 +42,7 @@ try {
                 'Data' => $subject,
             ],
             'Body' => [
-                'Text' => [
+                'Html' => [
                     'Data' => $bodyText,
                 ],
             ],
