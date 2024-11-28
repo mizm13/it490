@@ -49,14 +49,16 @@ $bodyText = '
         }
         .email-header {
             text-align: center;
-            padding-bottom: 20px;
+            padding-bottom: 10px;
         }
         .email-header h1 {
             color: #4CAF50;
+            margin-bottom: 10px;
         }
         .email-body {
             font-size: 16px;
             line-height: 1.6;
+            margin-top: 0;
         }
         .verification-code {
             font-size: 24px;
@@ -73,6 +75,13 @@ $bodyText = '
             color: #888;
             padding-top: 20px;
         }
+        .footer p {
+            margin: 5px 0;
+        }
+        .footer .contact {
+            color: grey;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -87,11 +96,13 @@ $bodyText = '
             <p>Please enter this code to complete your login. For security reasons, do not share this code with anyone.</p>
         </div>
         <div class="footer">
-            <p>&copy; 2024 JJEMM Company. All rights reserved.</p>
+            <p>If you did not request this code, please contact our support team immediately.</p>
+            <p class="contact">Regards,<br>Your JJEMM Support Team</p>
         </div>
     </div>
 </body>
 </html>';
+
 
 try {
     // Send the email
