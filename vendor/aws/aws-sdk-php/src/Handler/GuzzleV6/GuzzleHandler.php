@@ -1,7 +1,6 @@
 <?php
 namespace Aws\Handler\GuzzleV6;
 
-use Aws\Sdk;
 use Exception;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
@@ -22,7 +21,7 @@ class GuzzleHandler
     /**
      * @param ClientInterface $client
      */
-    public function __construct(ClientInterface $client = null)
+    public function __construct(?ClientInterface $client = null)
     {
         $this->client = $client ?: new Client();
     }
@@ -43,14 +42,17 @@ class GuzzleHandler
 
         return $this->client->sendAsync($request, $this->parseOptions($options))
             ->otherwise(
-                static function (\Exception $e) {
+                static function ($e) {
                     $error = [
                         'exception'        => $e,
                         'connection_error' => $e instanceof ConnectException,
                         'response'         => null,
                     ];
 
-                    if ($e instanceof RequestException && $e->getResponse()) {
+                    if (
+                        ($e instanceof RequestException)
+                        && $e->getResponse()
+                    ) {
                         $error['response'] = $e->getResponse();
                     }
 
