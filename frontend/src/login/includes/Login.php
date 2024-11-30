@@ -11,6 +11,15 @@ abstract class Login {
 
     private false|\nba\shared\Session $session;
 
+    /**
+     * Generates a 2FA code
+     * @return int
+     */
+    private static function generate2FACode() {
+        // Generate a 2FA code
+        return random_int(100000, 999999);
+    }
+
     private static function handleLogin() {
         //error_log(print_r($_POST["email"]));
         try{
@@ -19,7 +28,7 @@ abstract class Login {
                 $password = filter_input(INPUT_POST,'password');
 
                 $hasError = false;
-                
+
                 if (empty($email)) {
                     $hasError = true;
                 }
@@ -45,18 +54,49 @@ abstract class Login {
 
                     if($session == false){
                         echo("Login attempt failed, please try again.");
-                    } 
-                } 
+                        return;
+                    }
+
+                    // Generate2FA code
+                    $twoFACode = self::generate2FACode();
+
+                    // Send 2FA and email to the database
+                    try {
+                        $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "email");
+
+                        $request = json_encode([
+                            'type' => '2fa',
+                            'email' => $email,
+                            'two_fa_code' => $twoFACode,
+                            'subject' => "Your NBA Fantasy 2FA Code",
+                            'body' => "Your 2FA code is: $twoFACode. Please enter it to complete your login."
+                        ]);
+
+                        error_log("Request sent to RabbitMQ: " . print_r($request, true));
+
+                        $response = $rabbitClient->send_request($request, 'application/json');
+                        error_log("Response received from RabbitMQ: " . print_r($response, true));
+
+                        if (!isset($response['success']) || !$response['success']) {
+                            throw new \Exception("Failed to process 2FA code in the database.");
+                        }
+                        echo "A 2FA code has been sent to your email. Please check your inbox.";
+                    } catch (\Exception $e) {
+                        error_log("Error sending 2FA code to database: " . $e->getMessage());
+                        echo "An error occurred. Please try again.";
+                        return;
+                    }
+                }
             }
-        }catch(\Exception $e){
-            error_log("Error processing login ".$e->getMessage());
+        } catch (\Exception $e) {
+            error_log("Error processing login: " . $e->getMessage());
         }
     }//end handleLogin()
 
     /**
-    * Displays main login page.
-    * @return void
-    */
+     * Displays main login page.
+     * @return void
+     */
     public static function displayLogin() {
 
         self::handleLogin();
@@ -68,8 +108,8 @@ abstract class Login {
         <head>
             <?php echo \nba\src\lib\components\Head::displayHead();
            echo \nba\src\lib\components\Nav::displayNav();?>
-           
-           
+
+
         </head>
 
         <body>
@@ -100,5 +140,5 @@ abstract class Login {
 
     <?php
     } //end of displayLogin()
-    
+
 }
