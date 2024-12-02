@@ -6,7 +6,53 @@
  */
 class Scoring {
 
+    /**
+     * Method to get the current week number for a given game, 
+     * using ISO-8601 weeks, 52 per year
+     * @param string $gameData
+     */
+    private function getWeekNumber($gameData){
+        return date('W', strtotime($gameData));
+    }
 
+    /**
+     * Method to get player's stats and group them by player and week
+     * @param none
+     */
+    private function getPlayerStatsByWeek() {
+        echo "Connecting to the database...\n";
+        $db = connectDB();
+
+        if ($db === null) {
+            echo "Failed to connect to the database.\n";
+            return;
+        }
+
+        $query = "SELECT
+                        ps.player_id, 
+                        SUM(ps.points as total_points,
+                        SUM(ps.rebounds) as total_rebounds,
+                        SUM(ps.assists) as total_assists,
+                        SUM(ps.blocks) as total_blocks,
+                        SUM(ps.steals) as total_steals,
+                        WEEK(g.game_date, 1) as week_number
+                        /* 1 the sets the week to start on monday, we can change */
+                    FROM
+                        player_stats ps
+                    INNER JOIN
+                        games g on ps.game_id = g.game_id
+                    GROUP BY
+                        ps.player_id, week_number
+                    ";
+        
+        $result = $db->query($query);
+
+        /* fetches all rows in the result and returns them as an associative array */
+        $stats = $result->fetch_all(MYSQLI_ASSOC);
+        $db->close();
+
+        return $stats;
+    }
     /** Method to calculate scores for a team for a given week
      * Should be run for all teams everytime game data is updated.
      * NOTE: This function implements the generation of fantasy point scoring for ALL players
@@ -14,7 +60,7 @@ class Scoring {
      * @param int $week the current week of the season
      * @param 
     */
-    private function calculateTeamScores($team_id, $week, $db) {
+    private function calculateTeamScores($team_id, $db) {
         /* TODO: adjust code to work for all players, not only those that are drafted
            TODO: update draft/add player tables with points data */
         echo "Start calculating team and player scores to fantasy points.\n";
@@ -27,6 +73,7 @@ class Scoring {
         }
 
         echo "Database connection successful.\n";
+        $currentWeek = date('W');
         $playersQuery = $db->prepare("SELECT player_id FROM fantasy_team_players WHERE team_id = ?");
         $playersQuery->bind_param("i", $team_id);
         $playersQuery->execute();
@@ -39,7 +86,7 @@ class Scoring {
     
             // Get player statistics for the week
             $statsQuery = $db->prepare("SELECT points_scored, rebounds, assists, steals, blocks FROM player_stats WHERE player_id = ? AND week = ?");
-            $statsQuery->bind_param("ii", $player_id, $week);
+            $statsQuery->bind_param("ii", $player_id, $currentWeek);
             $statsQuery->execute();
             $statsResult = $statsQuery->get_result();
     
@@ -57,18 +104,35 @@ class Scoring {
     }
     
     /**
-     *  Function to calculate player's score 
+     *  Function to calculate player's total fantasy points based on stats 
      * TODO: run this for every player when the game data is updated. 
      * TODO: create a table for player's points for each week that will be updated using this function
      * TODO: Find a way to only update players that actually played?(Based on NBA team id)*/ 
     private function calculatePlayerScore($stats) {
-        $points = 0;
-        $points += $stats['points_scored'] * 1;       // Points Scored
-        $points += $stats['rebounds'] * 1.25;          // Rebounds
-        $points += $stats['assists'] * 1.5;            // Assists
-        $points += $stats['steals'] * 2;               // Steals
-        $points += $stats['blocks'] * 2;               // Blocks
-        return $points;
+        $fantasyPoints = [];
+
+        foreach ($stats as $stat) {
+            $playerId = $stat['player_id'];
+            $weekNumber = $stat['week_number'];
+            $points = $stat['total_points'];
+            $rebounds = $stat['total_rebounds'];
+            $assists = $stat['total_assists'];
+            $blocks = $stat['total_blocks'];
+            $steals = $stat['total_steals'];
+        }
+
+        $totalFantasyPoints = 
+                            ($points * 1) +
+                            ($rebounds * 1.25) +
+                            ($assists * 1.5) +
+                            ($steals * 2) +
+                            ($blocks * 2);
+        
+        $fantasyPoints[] = [
+                        'player_id' => $playerid,
+                        'week_number' => $weekNumber,
+                        'fantasy_points' => $totalFantasyPoints
+                    ];
     }
     
     // Method to update matchup scores in the database
@@ -89,7 +153,12 @@ class Scoring {
     }
 
 
-
+/*TODO 
+Due to current db schema, to get the right stats from player_stats: 
+will need to check the game_id for stats, 
+reference the games table with that to get the game_date, 
+and check if it is in the current week
+*/
 
 
 
