@@ -80,7 +80,8 @@ abstract class Login {
                             throw new \Exception("Failed to process 2FA code in the database.");
                         }
                         echo "A 2FA code has been sent to your phone. Please check your messages.";
-                        header("Location: /verify2fa.php?email=" . urlencode($email));
+                        
+                        header("Location: /verify2fa");
                         exit();
                     } catch (\Exception $e) {
                         error_log("Error sending 2FA code to database: " . $e->getMessage());
