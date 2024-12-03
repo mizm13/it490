@@ -62,7 +62,7 @@ abstract class Login {
                     $expirationTimestamp = time() + (3 * 60);
                     // Send 2FA and email to the database
                     try {
-                        $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
+                        $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/example-host.ini', "Authentication");
 
                         $request = json_encode([
                             'type' => '2fa',
@@ -80,7 +80,7 @@ abstract class Login {
                             throw new \Exception("Failed to process 2FA code in the database.");
                         }
                         echo "A 2FA code has been sent to your phone. Please check your messages.";
-                        
+
                         header("Location: /verify2fa");
                         exit();
                     } catch (\Exception $e) {
