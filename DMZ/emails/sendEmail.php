@@ -67,6 +67,6 @@ function messageCallback($request) {
 }
 
 // Instantiate the RabbitMQServer class
-$rabbitMQServer = new RabbitMQServer(__DIR__.'/testRabbitMQ.ini', 'emails');
+$rabbitMQServer = new RabbitMQServer(__DIR__.'/testRabbitMQ.ini', 'email');
 
 $rabbitMQServer->process_requests('messageCallback');
