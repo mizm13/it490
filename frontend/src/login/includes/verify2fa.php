@@ -5,7 +5,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     try {
         // Check the 2FA code with database
-        $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
+        $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__ . '/hostt.ini', '2fa');
 
         $request = json_encode([
             'type' => 'verify_2fa',
