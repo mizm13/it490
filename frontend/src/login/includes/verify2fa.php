@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 // start session
                 session_start();
                 $_SESSION['email'] = $email;
-                header('Location: /home.php');
+                header('Location: /Home.php');
                 exit();
             } else {
                 echo "2FA code has expired. Please request a new code.";

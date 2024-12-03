@@ -62,15 +62,13 @@ abstract class Login {
                     $expirationTimestamp = time() + (3 * 60);
                     // Send 2FA and email to the database
                     try {
-                        $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "email");
+                        $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
 
                         $request = json_encode([
                             'type' => '2fa',
                             'email' => $email,
                             'two_fa_code' => $twoFACode,
                             'expiration' => $expirationTimestamp,
-                            'subject' => "Your NBA Fantasy 2FA Code",
-                            'body' => "Your 2FA code is: $twoFACode. Please enter it to complete your login."
                         ]);
 
                         error_log("Request sent to RabbitMQ: " . print_r($request, true));
@@ -81,7 +79,9 @@ abstract class Login {
                         if (!isset($response['success']) || !$response['success']) {
                             throw new \Exception("Failed to process 2FA code in the database.");
                         }
-                        echo "A 2FA code has been sent to your email. Please check your inbox.";
+                        echo "A 2FA code has been sent to your phone. Please check your messages.";
+                        header("Location: /verify2fa.php?email=" . urlencode($email));
+                        exit();
                     } catch (\Exception $e) {
                         error_log("Error sending 2FA code to database: " . $e->getMessage());
                         echo "An error occurred. Please try again.";
