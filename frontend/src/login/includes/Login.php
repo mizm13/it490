@@ -62,7 +62,7 @@ abstract class Login {
                     $expirationTimestamp = time() + (3 * 60);
                     // Send 2FA and email to the database
                     try {
-                        $rabbitClient = new RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
+                        $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__ . '/../../../RabbitMQ/testRabbitMQ.ini', "Authentication");
 
                         $request = json_encode([
                             'type' => '2fa',
