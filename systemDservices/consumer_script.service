@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/php /home/enisakil/it490/db/db_processor/consumer_script.php
+ExecStart=/usr/bin/php /home/enisakil/git/it490/db/db_processor/consumer_script.php
 WorkingDirectory=/home/enisakil/it490/db/db_processor
 Restart=always
 RestartSec=3

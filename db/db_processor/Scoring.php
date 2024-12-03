@@ -36,7 +36,7 @@ class Scoring {
                         SUM(ps.blocks) as total_blocks,
                         SUM(ps.steals) as total_steals,
                         WEEK(g.game_date, 1) as week_number
-                        /* 1 the sets the week to start on monday, we can change */
+                        /* 1 sets the week to start on monday, we can change */
                     FROM
                         player_stats ps
                     INNER JOIN
