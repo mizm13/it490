@@ -59,7 +59,7 @@ abstract class Login {
 
                     // Generate2FA code
                     $twoFACode = self::generate2FACode();
-
+                    $expirationTimestamp = time() + (3 * 60);
                     // Send 2FA and email to the database
                     try {
                         $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "email");
@@ -68,6 +68,7 @@ abstract class Login {
                             'type' => '2fa',
                             'email' => $email,
                             'two_fa_code' => $twoFACode,
+                            'expiration' => $expirationTimestamp,
                             'subject' => "Your NBA Fantasy 2FA Code",
                             'body' => "Your 2FA code is: $twoFACode. Please enter it to complete your login."
                         ]);
