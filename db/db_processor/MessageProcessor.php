@@ -1984,6 +1984,126 @@ class MessageProcessor
         }
     }
 
+    
+    private function processor2FA($request)
+    {
+        if (!isset($request['email']) || !isset($request['two_fa_code']) || !isset($request['expiration'])) {
+            $this->response = [
+                'type' => '2fa_response',
+                'status' => 'error',
+                'message' => 'Missing required fields (email, 2FA code, or expiration) in the request.'
+            ];
+            return;
+        }
+   
+        $email = $request['email'];
+        $twoFACode = $request['two_fa_code'];
+        $expiration = $request['expiration'];
+   
+        echo "Connecting to the database...\n";
+        $db = connectDB();
+        if ($db === null) {
+            $this->response = [
+                'type' => '2fa_response',
+                'status' => 'error',
+                'message' => 'Database connection failed.'
+            ];
+            return;
+        }
+        echo "Database connection successful.\n";
+   
+        try {
+            // Save the 2FA code and expiration in the `2fa` table
+            $insert2FAQuery = $db->prepare("INSERT INTO 2fa (email, code, expiration) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE code = ?, expiration = ?");
+            if (!$insert2FAQuery) {
+                throw new Exception("Failed to prepare 2FA insert query: " . $db->error);
+            }
+            $insert2FAQuery->bind_param("ssiss", $email, $twoFACode, $expiration, $twoFACode, $expiration);
+            if (!$insert2FAQuery->execute()) {
+                throw new Exception("Failed to save 2FA code to the database.");
+            }
+            $insert2FAQuery->close();
+   
+            // Response successful insert
+            $this->response = [
+                'type' => '2fa_response',
+                'status' => 'success',
+                'message' => '2FA code successfully saved.'
+            ];
+        } catch (Exception $e) {
+            $this->response = [
+                'type' => '2fa_response',
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ];
+        } finally {
+            $db->close();
+        }
+    }
+   
+
+        private function processorVerify2FA($request)
+        {
+            if (!isset($request['email']) || !isset($request['two_fa_code'])) {
+                $this->response = [
+                    'success' => false,
+                    'message' => 'Missing required fields (email or 2FA code).'
+                ];
+                return;
+            }
+       
+            $email = $request['email'];
+            $enteredCode = $request['two_fa_code'];
+       
+            echo "Connecting to the database...\n";
+            $db = connectDB();
+            if ($db === null) {
+                $this->response = [
+                    'success' => false,
+                    'message' => 'Database connection failed.'
+                ];
+                return;
+            }
+       
+            try {
+                // get the stored code and expiration
+                $query = $db->prepare("SELECT code, expiration FROM 2fa WHERE email = ?");
+                if (!$query) {
+                    throw new Exception("Failed to prepare query: " . $db->error);
+                }
+       
+                $query->bind_param("s", $email);
+                $query->execute();
+                $query->bind_result($storedCode, $expiration);
+                if (!$query->fetch() || empty($storedCode)) {
+                    throw new Exception("No 2FA record found for the provided email.");
+                }
+                $query->close();
+       
+                // Validate the code and expiration
+                if ($enteredCode === $storedCode && time() <= $expiration) {
+                    $this->response = [
+                        'success' => true,
+                        'expiration' => $expiration
+                    ];
+                } else {
+                    $this->response = [
+                        'success' => false,
+                        'message' => 'Invalid or expired 2FA code.'
+                    ];
+                }
+       
+            } catch (Exception $e) {
+                $this->response = [
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ];
+            } finally {
+                $db->close();
+            }
+        }
+
+
     /**
      * Get the response to send back to the client.
      *
