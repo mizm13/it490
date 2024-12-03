@@ -155,7 +155,7 @@ class MessageProcessor
         echo (print_r($request));
         if(isset($request['email']) && isset($request['password'])) {
             $email = $request['email'];
-            $hashedPassword = $request['password'];
+            $passwordInput = $request['password'];
             echo "Set Email and Password\n";
         } else {
             echo "Failed to set email and password.\n";
@@ -168,25 +168,27 @@ class MessageProcessor
         }
 
         // Prepare the SQL statement to check credentials
-        $query = $db->prepare('SELECT * FROM users WHERE email = ? AND hashed_password = ? LIMIT 1');
+        $query = $db->prepare('SELECT user_id, hashed_password FROM users WHERE email = ? LIMIT 1');
         if (!$query) {
             echo "Failed to prepare the query: " . $db->error . "\n";
             return;
         }
-        $query->bind_param("ss", $email, $hashedPassword);
+        $query->bind_param("s", $email);
         $query->execute();
         $result = $query->get_result();
         if (!$result) {
             echo "Query execution failed: " . $db->error . "\n";
             return;
         }
-        $num_rows = mysqli_num_rows($result);
-        echo "Number of rows found: " . $num_rows . "\n";
-        // Check if the user credentials are valid
-        if ($num_rows > 0) {
-            // Fetch the user_id from the query result
+
+        if($result->num_rows > 0) {
             $userData = $result->fetch_assoc();
-            $user_id = $userData['user_id'];  // Fetch the user_id from the users table
+            $userID = $userData['user_id'];
+            $storedPassword = $userData['hashed_password'];
+        }
+
+        if(password_verify($passwordInput,$storedPassword)) {
+
             echo "Login successful. User ID: $user_id. Preparing to insert session information.\n";
             
             // Authentication successful, generate session token
@@ -235,7 +237,7 @@ class MessageProcessor
                 'message' => "Login failed: Invalid email or password."
                 ]
             ;
-        }
+    }
 
         // Close connection
         $db->close();
@@ -248,7 +250,11 @@ class MessageProcessor
     {
         echo "Starting registration process...\n";
         $email = $request['email'];
-        $hashedPassword = $request['password'];
+        $password = $request['password'];
+
+        /* Hash the password, BCRYPT algo by */
+        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
 
         // Connect to the database
         echo "Connecting to the database...\n";

@@ -9,10 +9,10 @@ class Scoring {
     /**
      * Method to get the current week number for a given game, 
      * using ISO-8601 weeks, 52 per year
-     * @param string $gameData
+     * @param string $gameDate
      */
-    private function getWeekNumber($gameData){
-        return date('W', strtotime($gameData));
+    private function getWeekNumber($gameDate){
+        return date('W', strtotime($gameDate));
     }
 
     /**
@@ -135,6 +135,11 @@ class Scoring {
                     ];
     }
     
+    /**
+     * Method to add up the total points for a team per week
+     * @param float fantasy points
+     */
+
     // Method to update matchup scores in the database
     private function updateMatchupScores($db, $matchup_id, $team1_score, $team2_score) {
         $updateQuery = "UPDATE matchups SET team1_score = ?, team2_score = ? WHERE matchup_id = ?";
