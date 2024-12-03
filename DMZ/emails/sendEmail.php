@@ -1,5 +1,6 @@
 <?php
 require_once('/home/mizm13/it490/vendor/autoload.php'); 
+include(__DIR__.'/RabbitMQServer.php');
 
 use Aws\Ses\SesClient;
 use Aws\Exception\AwsException;
@@ -18,39 +19,54 @@ $sesClient = new SesClient([
     ]
 ]);
 
-$code = "5342";
-$user = "Bob";
-
 $senderEmail = $_ENV['SENDER_EMAIL']; 
-$recipientEmail = $_ENV['RECIPIENT_EMAIL']; 
-#$subject = 'Test Email from AWS SES IT490';
-$subject = 'Your Verification Code for Login';
-#$bodyText = 'Hello, this is a test email sent via AWS SES and PHP for IT490!';
-$bodyText = 'Hi ' . $user . ', <br>Your verification code is <strong>' . $code . ' </strong>.<br>Please enter this code to complete your login. For security reasons, do not share this code with anyone.';
 
-try {
-    // Send the email
-    $result = $sesClient->sendEmail([
-        'Source' => $senderEmail,
-        'Destination' => [
-            'ToAddresses' => [
-                $recipientEmail,
+function sendMail($recipientEmail, $subject, $bodyText) {
+    global $sesClient, $senderEmail;
+
+    try {
+        $result = $sesClient->sendEmail([
+            'Source' => $senderEmail,
+            'Destination' => [
+                'ToAddresses' => [$recipientEmail],
             ],
-        ],
-        'Message' => [
-            'Subject' => [
-                'Data' => $subject,
-            ],
-            'Body' => [
-                'Html' => [
-                    'Data' => $bodyText,
+            'Message' => [
+                'Subject' => [
+                    'Data' => $subject,
+                ],
+                'Body' => [
+                    'Html' => [
+                        'Data' => $bodyText,
+                    ],
                 ],
             ],
-        ],
-    ]);
+        ]);
 
-    echo "Email sent! Message ID: " . $result['MessageId'] . "\n";
-} catch (AwsException $e) {
-    // Output error message if fails
-    echo "Error sending email: " . $e->getMessage() . "\n";
+        echo "Email sent successfully to $recipientEmail. Message ID: " . $result['MessageId'] . "\n";
+    } catch (AwsException $e) {
+        echo "Error sending email to $recipientEmail: " . $e->getMessage() . "\n";
+    }
 }
+
+function messageCallback($request) {
+    echo "Request message received: " . print_r($request, true);
+
+    // If the request is not an array, decode it; otherwise, use it as-is
+    $messageData = is_array($request) ? $request : json_decode($request, true);
+
+    //Validates required fields
+    if (isset($messageData['recipient_email'], $messageData['subject'], $messageData['body'])) {
+        $recipientEmail = $messageData['recipient_email'];
+        $subject = $messageData['subject'];
+        $bodyText = $messageData['body'];
+
+        sendMail($recipientEmail, $subject, $bodyText);
+    } else {
+        echo "Invalid message format. Required keys: recipient_email, subject, body.\n";
+    }
+}
+
+// Instantiate the RabbitMQServer class
+$rabbitMQServer = new RabbitMQServer(__DIR__.'/testRabbitMQ.ini', 'emails');
+
+$rabbitMQServer->process_requests('messageCallback');
