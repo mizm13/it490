@@ -112,13 +112,13 @@ class Scoring {
         $fantasyPoints = [];
 
         foreach ($stats as $stat) {
-            $playerId = $stat['player_id'];
+            $playerId   = $stat['player_id'];
             $weekNumber = $stat['week_number'];
-            $points = $stat['total_points'];
-            $rebounds = $stat['total_rebounds'];
-            $assists = $stat['total_assists'];
-            $blocks = $stat['total_blocks'];
-            $steals = $stat['total_steals'];
+            $points     = $stat['total_points'];
+            $rebounds   = $stat['total_rebounds'];
+            $assists    = $stat['total_assists'];
+            $blocks     = $stat['total_blocks'];
+            $steals     = $stat['total_steals'];
         }
 
         $totalFantasyPoints = 
@@ -129,41 +129,205 @@ class Scoring {
                             ($blocks * 2);
         
         $fantasyPoints[] = [
-                        'player_id' => $playerid,
-                        'week_number' => $weekNumber,
-                        'fantasy_points' => $totalFantasyPoints
-                    ];
+                            'player_id'      => $playerid,
+                            'week_number'    => $weekNumber,
+                            'fantasy_points' => $totalFantasyPoints
+                        ];
     }
     
     /**
      * Method to add up the total points for a team per week
      * @param float fantasy points
      */
+    function getTeamScorePerWeek($fantasyPoints) {
+        echo "Connecting to the database...\n";
+        $db = connectDB();
 
-    // Method to update matchup scores in the database
-    private function updateMatchupScores($db, $matchup_id, $team1_score, $team2_score) {
-        $updateQuery = "UPDATE matchups SET team1_score = ?, team2_score = ? WHERE matchup_id = ?";
-        $stmt = $db->prepare($updateQuery);
-        $stmt->bind_param("iii", $team1_score, $team2_score, $matchup_id);
-        $stmt->execute();
-        $stmt->close();
+        if ($db === null) {
+            echo "Failed to connect to the database.\n";
+            return;
+        }
+
+        $teamScores = [];
+
+        foreach ($fantasyPoints as $fp) {
+            $playerId   = $fp['player_id'];
+            $weekNumber = $fp['week_number'];
+            $points     = $fp['fantasy_points'];
+
+            $query = "SELECT
+                        ftp.team_id, ftp.league_id
+                    FROM
+                        fantasy_team_players ftp
+                    WHERE
+                        ftp.player_id = ?";
+
+            $stmt = $db->prepare($query);
+            $stmt->bind_param("i", $playerId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            while($row = $result->fetch_assoc()) {
+                $teamId   = $row['team_id'];
+                $leagueId = $row['league_id'];
+                $key      = $leagueId . '_' . $teamId . '_' . $weekNumber;
+
+                if(!isset($teamscore[$key])) {
+                    $teamScores[$key] = [
+                                        'league_id'    => $leagueId,
+                                        'team_id'      => $teamId,
+                                        'week_number'  => $weekNumber,
+                                        'total_points' => 0
+                    ];
+                }
+
+                $teamScores[$key]['total_points'] += $points;
+            }
+            $stmt->close();
+        }
+        $db->close();
+        return $teamScores;
     }
+
     /**
-     * Function to create the matchup schedule for the season.
+     * Method to update the scores of teams in the DB.
+     * @param mixed $teamScores the scores of teams, the key is $leagueId_$teamId_$weekNumber
+     */
+    function updateMatchups($teamScores) {
+        echo "Connecting to the database...\n";
+        $db = connectDB();
+
+        if ($db === null) {
+            echo "Failed to connect to the database.\n";
+            return;
+        }
+        
+        foreach ($teamScores as $score) {
+            $leagueId    = $score['league_id'];
+            $teamId      = $score['teamd_id'];
+            $weekNumber  = $score['week_number'];
+            $totalPoints = $score['total_points]'];
+
+            $query = "SELECT
+                            matchup_id, team1_id, team2_id
+                        FROM
+                            matchups
+                        WHERE
+                            league_id = ? AND week = ? AND (team1_id = ? OR team2_id = ?)";
+            
+            $stmt = $db->prepare($query);
+            $stmt->bind_param("iiii", $leagueId, $weekNumber, $teamId, $teamId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $matchup = $result->fetch_assoc();
+            $stmt->close();
+
+            /*Check for which team is a match and update that team's score. */
+            if ($matchup) {
+                $matchupId = $matchup['matchup_id'];
+                $isTeam1 = ($matchup['team1_id'] == $teamId);
+            
+                if($isTeam1) {
+                    $updateScore = "UPDATE
+                                        matchups
+                                    SET
+                                        team1_score = ?
+                                    WHERE
+                                        matchup_id = ?";
+                } else {
+                    $updateScore = "UPDATE
+                                        matchups
+                                    SET
+                                        team2_score = ?
+                                    WHERE
+                                        matchup_id = ?";
+                }
+
+                $updateStmt = $db->prepare($updateScore);
+                $updateStmt->bind_param("ii", $totalPoints, $matchupId);
+                $updateStmt->execute();
+                $updateStmt->close();
+            } else {
+                error_log("No matchup found for team $teamId in league # $leagueId for week $weeknumber");
+            }
+            $db->close();
+        }
+    }
+
+
+    /**
+     * 
+     */
+    function updateStandings() {
+        echo "Connecting to the database...\n";
+        $db = connectDB();
+
+        if ($db === null) {
+            echo "Failed to connect to the database.\n";
+            return;
+        }
+
+        $query = "SELECT 
+                    m.matchup_id, m.league_id, m.team1_id, m.team2_id, m.team1_score, m.team2_score
+                 FROM 
+                    matchups m
+                WHERE 
+                    m.team1_score IS NOT NULL AND m.team2_score IS NOT NULL AND m.winner_team_id IS NULL";
+
+        $result = $db->query($query);
+        while ($matchup = $result->fetch_assoc()) {
+            $leagueId   = $matchup['league_id'];
+            $team1Id    = $matchup['team1_id'];
+            $team2Id    = $matchup['team2_id'];
+            $team1Score = $matchup['team1_score'];
+            $team2Score = $matchup['team2_score'];
+
+            if ($team1Score > $team2Score) {
+                $winnerTeamId = $team1Id;
+                $loserTeamId = $team2Id;
+            } elseif ($team2Score > $team1Score) {
+                $winnerTeamId = $team2Id;
+                $loserTeamId = $team1Id;
+            } else {
+                /* There is a tie */
+                $winnerTeamId = null;
+            }
+
+            // Update matchup with winner
+            $updateMatchup = "UPDATE 
+                                matchups
+                              SET 
+                                winner_team_id = ?
+                            WHERE 
+                                matchup_id = ?";
+
+            $stmt = $db->prepare($updateMatchup);
+            $stmt->bind_param("ii", $winnerTeamId, $matchup['matchup_id']);
+            $stmt->execute();
+            $stmt->close();
+
+            // Update standings
+            if ($winnerTeamId) {
+                // Winner gets a win, loser gets a loss
+                $db->query("UPDATE standings SET wins = wins + 1 WHERE league_id = $leagueId AND team_id = $winnerTeamId");
+                $db->query("UPDATE standings SET losses = losses + 1 WHERE league_id = $leagueId AND team_id = $loserTeamId");
+            } else {
+                // Both teams get a tie
+                $db->query("UPDATE standings SET ties = ties + 1 WHERE league_id = $leagueId AND team_id IN ($team1Id, $team2Id)");
+            }
+        }
+
+        $db->close();
+    }
+
+    /**
+     * Method to create the matchup schedule for the season.
      * Should be called when draft is finished.
      */
     public function create_matchup_schedule(){
         
         /*TODO */
     }
-
-
-/*TODO 
-Due to current db schema, to get the right stats from player_stats: 
-will need to check the game_id for stats, 
-reference the games table with that to get the game_date, 
-and check if it is in the current week
-*/
 
 
 
