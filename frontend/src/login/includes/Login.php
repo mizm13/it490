@@ -82,7 +82,7 @@ abstract class Login {
                         }
                         echo "A 2FA code has been sent to your phone. Please check your messages.";
 
-                        header("Location: /verify2fa");
+                        header("Location: /verify2fa?email=" . urlencode($email));
                         exit();
                     } catch (\Exception $e) {
                         error_log("Error sending 2FA code to database: " . $e->getMessage());
