@@ -1,5 +1,5 @@
 <?php
-require_once('/home/enisakil/git/it490/db/connectDB.php');
+require_once('/home/macho/it490/db/connectDB.php');
 
 include(__DIR__.'/rabbitMQLib.inc');
 

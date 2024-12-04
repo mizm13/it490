@@ -3,8 +3,8 @@
  * Class that contains main processor function to call different processors,
  * as well as the processors themselves.
  */
-require_once('/home/enisakil/git/it490/db/connectDB.php');
-require_once('/home/enisakil/git/it490/db/get_host_info.inc');
+require_once('/home/macho/it490/db/connectDB.php');
+require_once('/home/macho/it490/db/get_host_info.inc');
 
 class MessageProcessor
 {

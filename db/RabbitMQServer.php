@@ -122,8 +122,8 @@ class RabbitMQServer
 	{
 		try
 		{
-			$this->callback 	 = $callback;
-            $params 			 = array();
+	    $this->callback 	 = $callback;
+            $params 		 = array();
             $params['host'] 	 = $this->BROKER_HOST;
             $params['port'] 	 = $this->BROKER_PORT;
             $params['login'] 	 = $this->USER;
@@ -139,10 +139,10 @@ class RabbitMQServer
 			$channel = new \AMQPChannel($conn);
 
 			$exchange = new \AMQPExchange($channel);
-            $exchange->setName($this->clientExchangeName);
-            $exchange->setType($this->exchange_type);
+       		        $exchange->setName($this->clientExchangeName);
+            		$exchange->setType($this->exchange_type);
 			$exchange->setFlags(\AMQP_DURABLE);
-            $exchange->declareExchange();
+            		$exchange->declareExchange();
 
 			$this->serverQueue = new \AMQPQueue($channel);
 			$this->serverQueue->setName($this->serverQueueName);
