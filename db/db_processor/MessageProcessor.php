@@ -126,6 +126,14 @@ class MessageProcessor
                 $this->processor_get_league_standings($request);
                 break;
 
+            case 'new_2fa':
+                $this->processorNew2FA($request);
+                break;
+
+            case 'verify_2fa':
+                $this->processorVerify2FA($request);
+                break;
+
             default:
                 $this->responseError = ['status' => 'error', 'message' => 'Unknown request type'];
                 echo "Unknown request type: {$request['type']}\n";
@@ -187,47 +195,14 @@ class MessageProcessor
             $storedPassword = $userData['hashed_password'];
         }
 
+        $query->close();
+        $db->close();
+
         if(password_verify($passwordInput,$storedPassword)) {
 
-            echo "Login successful. User ID: $user_id. Preparing to insert session information.\n";
+            echo "Login successful. User ID: $userId . Preparing to insert session information.\n";
             
-            // Authentication successful, generate session token
-            $token = uniqid();
-            $timestamp = time() + (6 * 60 * 60);
-
-            // Insert session information into the sessions table
-            $insertQuery = $db->prepare('INSERT INTO sessions (session_token, timestamp, email, user_id) VALUES (?, ?, ?, ?)');
-            if (!$insertQuery) {
-                echo "Failed to prepare the insert query: " . $db->error . "\n";
-                return;
-            }
-            $insertQuery->bind_param("sssi", $token, $timestamp, $email, $user_id);
-
-            // Log the variables for debugging purposes
-            echo "Token: $token\nTimestamp: $timestamp\nEmail: $email\nUser ID: $user_id\n";
-
-            if ($insertQuery->execute()) {
-                echo "Session information inserted successfully.\n";
-                // Prepare successful response
-                $this->response = [
-                    'type' => 'login_response',
-                    'result' => 'true',
-                    'message' => "Login successful for $email",
-                    'email' => $email,
-                    'session_token' => $token,
-                    'expiration_timestamp' => $timestamp
-                    ]
-                ;
-            } else {
-                echo "Failed to insert session information: " . $db->error . "\n";
-                // Handle insert failure
-                $this->response = [
-                    'type' => 'login_response',
-                    'result' => 'false',
-                    'message' => "Login successful, but failed to create session."
-                    ]
-                ;
-            }
+            processorNew2FA($request);
         } else {
             echo "Login failed: Invalid email or password.\n";
             // Invalid credentials
@@ -1985,33 +1960,34 @@ class MessageProcessor
     }
 
     
-    private function processor2FA($request)
+    private function processorNew2FA($request)
     {
-        if (!isset($request['email']) || !isset($request['two_fa_code']) || !isset($request['expiration'])) {
+        if (!isset($request['email'])) {
             $this->response = [
-                'type' => '2fa_response',
+                'type' => 'new_2fa_response',
                 'status' => 'error',
-                'message' => 'Missing required fields (email, 2FA code, or expiration) in the request.'
+                'message' => 'Invalid email address.'
             ];
             return;
         }
-   
+
         $email = $request['email'];
-        $twoFACode = $request['two_fa_code'];
-        $expiration = $request['expiration'];
+        /* Generate 2fa code as random int and set expiration for 3 minutes */
+        $twoFACode = random_int(100000, 999999);
+        $expiration = time() + 180;
    
         echo "Connecting to the database...\n";
         $db = connectDB();
         if ($db === null) {
             $this->response = [
-                'type' => '2fa_response',
+                'type' => 'new_2fa_response',
                 'status' => 'error',
                 'message' => 'Database connection failed.'
             ];
             return;
         }
         echo "Database connection successful.\n";
-   
+
         try {
             // Save the 2FA code and expiration in the `2fa` table
             $insert2FAQuery = $db->prepare("INSERT INTO 2fa (email, code, expiration) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE code = ?, expiration = ?");
@@ -2026,7 +2002,7 @@ class MessageProcessor
    
             // Response successful insert
             $this->response = [
-                'type' => '2fa_response',
+                'type' => 'new_2fa_response',
                 'status' => 'success',
                 'message' => '2FA code successfully saved.'
             ];
@@ -2059,6 +2035,7 @@ class MessageProcessor
             $db = connectDB();
             if ($db === null) {
                 $this->response = [
+                    'type' => 'verify_2fa_response',
                     'success' => false,
                     'message' => 'Database connection failed.'
                 ];
@@ -2082,19 +2059,47 @@ class MessageProcessor
        
                 // Validate the code and expiration
                 if ($enteredCode === $storedCode && time() <= $expiration) {
-                    $this->response = [
-                        'success' => true,
-                        'expiration' => $expiration
-                    ];
+                    // Authentication successful, generate session token
+                    $token = uniqid();
+                    $timestamp = time() + (6 * 60 * 60);
+
+                    // Insert session information into the sessions table
+                    $insertQuery = $db->prepare('INSERT INTO sessions (session_token, timestamp, email, user_id) VALUES (?, ?, ?, ?)');
+                    if (!$insertQuery) {
+                        echo "Failed to prepare the insert query: " . $db->error . "\n";
+                        return;
+                    }
+                    $insertQuery->bind_param("sssi", $token, $timestamp, $email, $user_id);
+
+                    // Log the variables for debugging purposes
+                    echo "Token: $token\nTimestamp: $timestamp\nEmail: $email\nUser ID: $user_id\n";
+
+                    if ($insertQuery->execute()) {
+                        echo "Session information inserted successfully.\n";
+                        // Prepare successful response
+                        $this->response = [
+                            'type' => 'verify_2fa_response',
+                            'result' => 'true',
+                            'message' => "Login successful for $email",
+                            'email' => $email,
+                            'session_token' => $token,
+                            'expiration_timestamp' => $timestamp
+                        ];
+                    } 
                 } else {
+                    echo "Failed to insert session information: " . $db->error . "\n";
+                    // Handle insert failure
                     $this->response = [
-                        'success' => false,
-                        'message' => 'Invalid or expired 2FA code.'
+                        'type' => 'verify_2fa_response',
+                        'result' => 'false',
+                        'message' => "Login successful, but failed to create session."
                     ];
+                    
                 }
-       
+
             } catch (Exception $e) {
                 $this->response = [
+                    'type' => 'verify_2fa_response',
                     'success' => false,
                     'message' => $e->getMessage()
                 ];
@@ -2102,7 +2107,6 @@ class MessageProcessor
                 $db->close();
             }
         }
-
 
     /**
      * Get the response to send back to the client.
