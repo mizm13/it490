@@ -12,14 +12,14 @@ $dotenv->load();
 // Create a new SES client
 $sesClient = new SesClient([
     'version' => 'latest',
-    'region' => getenv('AWS_REGION'), 
+    'region' => $_ENV('AWS_REGION'), 
     'credentials' => [
-        'key'    => getenv('AWS_ACCESS_KEY_ID'), 
-        'secret' => getenv('AWS_SECRET_ACCESS_KEY'), 
+        'key'    => $_ENV('AWS_ACCESS_KEY_ID'), 
+        'secret' => $_ENV('AWS_SECRET_ACCESS_KEY'), 
     ]
 ]);
 
-$senderEmail = getenv('SENDER_EMAIL'); 
+$senderEmail = $_ENV('SENDER_EMAIL'); 
 
 function sendMail($recipientEmail, $subject, $bodyText) {
     global $sesClient, $senderEmail;
