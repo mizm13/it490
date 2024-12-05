@@ -73,10 +73,10 @@ abstract class SessionHandler {
      * 
      * @return false or Session object
      */
-    public static function login(string $email, string $hashedPassword) {
+    public static function login(string $email) {
         ob_start();
         $cookieName = 'session_cookie';
-        $request = new \nba\shared\messaging\frontend\LoginRequest($email, $hashedPassword, 'login_request');
+        $request = new \nba\shared\messaging\frontend\LoginRequest($email, 'login_request');
         //error_log("Attempted to send json including:" . print_r($request, true));
         $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../rabbit/host.ini', "Authentication");
         $response = $rabbitClient->send_request(json_encode($request), 'application/json');

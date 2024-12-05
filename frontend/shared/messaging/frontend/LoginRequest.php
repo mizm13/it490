@@ -16,21 +16,12 @@ class LoginRequest extends \nba\shared\messaging\Request{
     private string $email;
 
     /**
-     * Users' password.
-     * 
-     * @var string $hashedPassword User's password.
-     */
-    private string $hashedPassword;
-
-    /**
      * Creates new login request.
      * 
      * @param string $email
-     * @param string $password
      */
-    public function __construct(string $email, string $hashedPassword, string $type = 'login_request'){
+    public function __construct(string $email, string $type = 'login_request'){
         $this->email = $email;
-        $this->hashedPassword = $hashedPassword;
         $this->type = $type;
     
     }
@@ -40,7 +31,6 @@ class LoginRequest extends \nba\shared\messaging\Request{
         return [
             'type' => $this->type,
             'email' => $this->email,
-            'password' => $this->hashedPassword,
         ];
     }
     
@@ -53,12 +43,4 @@ class LoginRequest extends \nba\shared\messaging\Request{
         return $this->email;
     }
 
-    /**
-     * Function to get user's hashed password.
-     *
-     * @return string User's hashed password.
-     */
-    public function getPassword(){
-        return $this->hashedPassword;
-    }
  }
