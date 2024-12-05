@@ -1,11 +1,12 @@
 <?php
-namespace nba\src\twofa\includes;
+namespace nba\src\verify2fa\includes;
 
 abstract class Verify2FA {
 
-    function handle2fa() {
+    private static function handle2fa() {
         if (($_SERVER['REQUEST_METHOD'] == 'POST') && isset($_POST['two_fa_code'])) {
             $email = $_GET['email'] ?? null; // Retrieve email from url
+            error_log("the email is set to $email \n");
             $enteredCode = $_POST['two_fa_code'];
     
             if (!$email) {
@@ -15,7 +16,7 @@ abstract class Verify2FA {
             }       
             try {
                 // Check the 2FA code with database
-                $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__ . '/../../../rabbit/host.ini', '2fa');
+                $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__ . '/../../../rabbit/host.ini', 'Authentication');
 
                 $request = json_encode([
                     'type' => 'verify_2fa',
@@ -51,10 +52,10 @@ abstract class Verify2FA {
                 echo "An error occurred. Please try again.";
             }
         } elseif (($_SERVER['REQUEST_METHOD'] == 'POST') && isset($_POST['new_code'])) {
-            $email = $_POST['email'];
+            $email = $_GET['email'] ?? null;
             /* Request a new 2fa code if expired */
             try {
-                $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__ . '/../../../rabbit/host.ini', '2fa');
+                $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__ . '/../../../rabbit/host.ini', 'Authentication');
 
                 $request = json_encode([
                     'type' => 'new_2fa',
@@ -75,9 +76,9 @@ abstract class Verify2FA {
         }
     }
 
-    function display2fa() {
+    public static function display2fa() {
 
-        self:handle2fa();
+        self::handle2fa();
         ?>
 
         <!DOCTYPE html>
@@ -90,14 +91,14 @@ abstract class Verify2FA {
         <body>
             <h1>Two-Factor Authentication</h1>
             <form method="POST">
-                <input type="hidden" name="email" value="<?php /* get email from previous post */ ?>">
+                <input type="hidden" name="email" value="<?php $_GET['email'] ?? null; ?>">
                 <label for="two_fa_code">Enter your 2FA Code:</label>
                 <input type="text" id="two_fa_code" name="two_fa_code" required>
                 <button type="submit">Verify</button>
             </form>
 
             <form>
-                <input type="hidden" name="email" value="<?php /* get email from previous post */ ?>">
+                <input type="hidden" name="email" value="<?php $_GET['email'] ?? null; ?>">
                 <input type="hidden" id="new_code" name="new_code">
                 <button type="submit">Get A New Code</button>
             </form>

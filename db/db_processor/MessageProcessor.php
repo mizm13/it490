@@ -3,8 +3,10 @@
  * Class that contains main processor function to call different processors,
  * as well as the processors themselves.
  */
-require_once('/home/macho/it490/db/connectDB.php');
-require_once('/home/macho/it490/db/get_host_info.inc');
+require_once('/home/enisakil/git/it490/db/connectDB.php');
+require_once('/home/enisakil/git/it490/db/get_host_info.inc');
+include(__DIR__.'/rabbitMQLib.inc');
+
 
 class MessageProcessor
 {
@@ -202,7 +204,7 @@ class MessageProcessor
 
             echo "Login successful. User ID: $userId . Preparing to insert session information.\n";
             
-            processorNew2FA($request);
+            return processorNew2FA($request);
         } else {
             echo "Login failed: Invalid email or password.\n";
             // Invalid credentials
@@ -1993,15 +1995,30 @@ class MessageProcessor
             $insert2FAQuery = $db->prepare("INSERT INTO 2fa (email, code, expiration) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE code = ?, expiration = ?");
             if (!$insert2FAQuery) {
                 throw new Exception("Failed to prepare 2FA insert query: " . $db->error);
+                $this->response = [
+                    'type' => '2fa_response',
+                    'status' => 'error',
+                    'message' => $e->getMessage()
+                ];
             }
             $insert2FAQuery->bind_param("ssiss", $email, $twoFACode, $expiration, $twoFACode, $expiration);
             if (!$insert2FAQuery->execute()) {
                 throw new Exception("Failed to save 2FA code to the database.");
-            }
+                $this->response = [
+                    'type' => '2fa_response',
+                    'status' => 'error',
+                    'message' => $e->getMessage()
+                ];
+            } else {
             $insert2FAQuery->close();
+
+            echo "calling send2fa";
+            send2FAsms($email, $twoFACode);
+
+            }
    
             // Response successful insert
-            $this->response = [
+            return $this->response = [
                 'type' => 'new_2fa_response',
                 'status' => 'success',
                 'message' => '2FA code successfully saved.'
@@ -2108,6 +2125,37 @@ class MessageProcessor
             }
         }
 
+
+    private function send2FAsms($email, $twoFACode){
+        echo "Connecting to the database... to send 2fa sms \n";
+        $db = connectDB();
+        if ($db === null) {
+            error_log("Failed to connect to DB to send SMS");
+        }
+        echo "Database connection successful.\n";
+
+        try {
+            $phoneNumQuery = $db->prepare("SELECT phone_number FROM users WHERE email = ?");
+            $phoneNumQuery->bind_param('s', $email);
+            $phoneNumQuery->execute();
+
+            $phoneNum = $phoneNumQuery->get_result();
+            $phoneNumQuery->close();
+            $db->close();
+
+            $message = json_encode(['phone_number' => $phoneNum,
+                                    'body'         => $twoFACode]);
+                        
+            $rabbitMQClient = new rabbitMQClient(__DIR__.'/../../DMZ/SMS/testRabbitMQ.ini', 'SMS');
+            $rabbitMQClient->publish($message);
+
+        } catch (Exception $e) {
+            error_log($e->getMessage());
+
+        } finally{
+            $db->close();
+        }
+    }
     /**
      * Get the response to send back to the client.
      *

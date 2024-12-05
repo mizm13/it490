@@ -57,7 +57,7 @@ abstract class Login {
                         $response = $rabbitClient->send_request($request, 'application/json');
                         error_log("Response received from RabbitMQ: " . print_r($response, true));
 
-                        if (!isset($response['success']) || !$response['success']) {
+                        if (!isset($response['status']) || !$response['status'] == 'success') {
                             throw new \Exception("Failed to process 2FA code in the database.");
                         }
                         echo "A 2FA code has been sent to your phone. Please check your messages.";
