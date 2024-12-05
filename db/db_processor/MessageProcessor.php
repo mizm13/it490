@@ -193,7 +193,8 @@ class MessageProcessor
 
         if($result->num_rows > 0) {
             $userData = $result->fetch_assoc();
-            $userID = $userData['user_id'];
+	   echo(print_r($userData, true));
+	    $userID = $userData['user_id'];
             $storedPassword = $userData['hashed_password'];
         }
 
