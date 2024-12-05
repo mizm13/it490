@@ -44,8 +44,17 @@ abstract class Login {
                 if (!$hasError) {
 
                     try {
-                        /* Previous login method in session handler processes original login to generate 2fa code*/
-                        $response = \nba\src\lib\SessionHandler::login($email, $password);
+                        /*Send request for new 2fa code */
+                        $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__ . '/host.ini', 'Authentication');
+
+                        $request = json_encode([
+                            'type' => 'new_2fa',
+                            'email' => $email
+                        ]);
+
+                        error_log("Request sent to RabbitMQ: " . print_r($request, true));
+
+                        $response = $rabbitClient->send_request($request, 'application/json');
                         error_log("Response received from RabbitMQ: " . print_r($response, true));
 
                         if (!isset($response['status']) || !$response['status'] == 'success') {
