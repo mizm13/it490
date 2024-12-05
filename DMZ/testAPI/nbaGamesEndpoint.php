@@ -26,8 +26,8 @@ echo "$game_date \n"; //prints out today's date
 
 $curl = curl_init();
 curl_setopt_array($curl, [
-    //CURLOPT_URL => "https://v2.nba.api-sports.io/games?date=$game_date", // Fetch games for the calculated date
-    CURLOPT_URL => "https://v2.nba.api-sports.io/games?date=2024-11-14", // Fetch games for the calculated date
+    CURLOPT_URL => "https://v2.nba.api-sports.io/games?date=$game_date", // Fetch games for the calculated date
+    //CURLOPT_URL => "https://v2.nba.api-sports.io/games?date=2024-11-25", // Fetch games for the calculated date
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_ENCODING => "",
     CURLOPT_MAXREDIRS => 10,
