@@ -3,9 +3,9 @@
  * Class that contains main processor function to call different processors,
  * as well as the processors themselves.
  */
-require_once('/home/enisakil/git/it490/db/connectDB.php');
-require_once('/home/enisakil/git/it490/db/get_host_info.inc');
-include(__DIR__.'/rabbitMQLib.inc');
+require_once(__DIR__.'/../connectDB.php');
+require(__DIR__.'/../RabbitMQClient.php');
+
 
 
 class MessageProcessor
@@ -2013,7 +2013,7 @@ class MessageProcessor
             $insert2FAQuery->close();
 
             echo "calling send2fa";
-            send2FAsms($email, $twoFACode);
+	    self::send2FAsms($email, $twoFACode);
 
             }
    
@@ -2132,22 +2132,34 @@ class MessageProcessor
         if ($db === null) {
             error_log("Failed to connect to DB to send SMS");
         }
-        echo "Database connection successful.\n";
+	echo "Database connection successful.\n";
 
-        try {
+	echo "email is $email";
+	
+	try {
             $phoneNumQuery = $db->prepare("SELECT phone_number FROM users WHERE email = ?");
             $phoneNumQuery->bind_param('s', $email);
-            $phoneNumQuery->execute();
+	    
+	    if(!$phoneNumQuery->execute()){
+	    	die("Error executing query to get phone number.");
+	    }
 
-            $phoneNum = $phoneNumQuery->get_result();
-            $phoneNumQuery->close();
-            $db->close();
+	    $result = $phoneNumQuery->get_result();
+	    if ($result->num_rows > 0) {
+    		$row = $result->fetch_assoc();
+    		$phoneNum = $row['phone_number'];
+	    } else {
+	    	die("Error executing query to get phone number.");
+	    }
+
+	    $phoneNumQuery->close();
 
             $message = json_encode(['phone_number' => $phoneNum,
                                     'body'         => $twoFACode]);
-                        
-            $rabbitMQClient = new rabbitMQClient(__DIR__.'/../../DMZ/SMS/testRabbitMQ.ini', 'SMS');
-            $rabbitMQClient->publish($message);
+
+	    error_log("2fa message being sent is " . print_r($message,true) . '\n');	    
+            $rabbitMQC = new RabbitMQClient(__DIR__.'/../host.ini', 'SMS');
+            $rabbitMQC->publish($message);
 
         } catch (Exception $e) {
             error_log($e->getMessage());
