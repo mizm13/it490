@@ -203,9 +203,9 @@ class MessageProcessor
 
         if(password_verify($passwordInput,$storedPassword)) {
 
-            echo "Login successful. User ID: $userId . Preparing to insert session information.\n";
+            echo "Login successful. User ID: $userID . Preparing to insert session information.\n";
             
-            return processorNew2FA($request);
+            return $this->response = self::processorNew2FA($request);
         } else {
             echo "Login failed: Invalid email or password.\n";
             // Invalid credentials
@@ -1963,7 +1963,7 @@ class MessageProcessor
     }
 
     
-    private function processorNew2FA($request)
+    public function processorNew2FA($request)
     {
         if (!isset($request['email'])) {
             $this->response = [
@@ -2113,19 +2113,20 @@ class MessageProcessor
                     if ($insertQuery->execute()) {
                         echo "Session information inserted successfully.\n";
                         // Prepare successful response
-                        $this->response = [
+                        return $this->response = [
                             'type' => 'verify_2fa_response',
                             'result' => 'true',
                             'message' => "Login successful for $email",
                             'email' => $email,
                             'session_token' => $token,
-                            'expiration_timestamp' => $timestamp
+			    'expiration_timestamp' => $timestamp,
+			    'expiration' => $expiration
                         ];
                     } 
                 } else {
                     echo "Failed to insert session information: " . $db->error . "\n";
                     // Handle insert failure
-                    $this->response = [
+                    return $this->response = [
                         'type' => 'verify_2fa_response',
                         'result' => 'false',
                         'message' => "Login successful, but failed to create session."
