@@ -45,7 +45,7 @@ abstract class Login {
 
                     try {
                         /*Send request for new 2fa code */
-                        $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__ . '/host.ini', 'Authentication');
+                        $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', 'Authentication');
 
                         $request = json_encode([
                             'type' => 'new_2fa',
