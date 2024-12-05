@@ -2094,7 +2094,7 @@ class MessageProcessor
                 $query->close();
        
                 // Validate the code and expiration
-                if ($enteredCode === $storedCode && time() <= $expiration) {
+                if ($enteredCode == $storedCode && time() <= $expiration) {
                     // Authentication successful, generate session token
                     $token = uniqid();
                     $timestamp = time() + (6 * 60 * 60);
