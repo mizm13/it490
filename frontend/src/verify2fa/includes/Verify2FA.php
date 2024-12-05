@@ -3,29 +3,16 @@ namespace nba\src\verify2fa\includes;
 
 abstract class Verify2FA {
 
+    private false|\nba\shared\Session $session;
+
     private static function verifyCode($email, $enteredCode) {
         try {
-            $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__ . '/../../../rabbit/host.ini', 'Authentication');
-
-            $request = json_encode([
-                'type' => 'verify_2fa',
-                'email' => $email,
-                'two_fa_code' => $enteredCode
-            ]);
-
-            $response = $rabbitClient->send_request($request, 'application/json');
-
-            if (isset($response['result']) && $response['result'] === 'true') {
-                if (isset($response['expiration']) && time() <= $response['expiration']) {
-                    // Successful verification
-                    echo "2FA verification successful. Logging you in...";
-                    \nba\src\lib\SessionHandler::login($email);
-                    header('Location: /Home.php');
-                    exit();
-                } else {
+            // Try to verify 2fa code
+            echo "2FA verification successful. Logging you in...";
+            $session = \nba\src\lib\SessionHandler::sessionFrom2FA($email, $enteredCode);
+            if($session == 'expired') {
                     echo "2FA code has expired. Please request a new code.";
-                }
-            } else {
+            } elseif ($session == false) {
                 echo "Invalid 2FA code. Please try again.";
             }
         } catch (\Exception $e) {

@@ -73,23 +73,49 @@ abstract class SessionHandler {
      * 
      * @return false or Session object
      */
-    public static function login(string $email) {
-        ob_start();
-        $cookieName = 'session_cookie';
-        $request = new \nba\shared\messaging\frontend\LoginRequest($email, 'login_request');
-        //error_log("Attempted to send json including:" . print_r($request, true));
+    public static function login(string $email, string $password) {
+
+        $request = new \nba\shared\messaging\frontend\LoginRequest($email, $password, 'login_request');
+        error_log("Login request sent to RabbitMQ: " . print_r($request, true));
         $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../rabbit/host.ini', "Authentication");
         $response = $rabbitClient->send_request(json_encode($request), 'application/json');
 
-        if($response['type'] === 'login_response' &&  $response['result'] == true) {
+        return $response;
+
+    }
+
+    /**
+     * Method that sends request for session data when 2fa verification is complete.
+     */
+    public static function sessionFrom2FA(string $email, int $enteredCode) {
+        ob_start();
+        $cookieName = 'session_cookie';
+        $result = '';
+        $request = [
+            'type' => 'verify_2fa',
+            'email' => $email,
+            'two_fa_code' => $enteredCode
+        ];
+        error_log("Attempted to 2fa verification:" . print_r($request, true));
+        $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__.'/../../rabbit/host.ini', "Authentication");
+        $response = $rabbitClient->send_request(json_encode($request), 'application/json');
+        error_log('response for 2fa verification is ' . print_r($response,true) . '\n');
+
+        if($response['type'] === 'verify_2fa_response' &&  $response['result'] == 'true') {
+            if (isset($response['expiration']) && time() <= $response['expiration']) {
+
             $session = new \nba\shared\Session(
                 $response['session_token'],
                 $response['expiration_timestamp'],
                 $response['email']
                         );
-            //error_log('session setting issue' . print_r(static::$session, true));
+            error_log('session setting issue' . print_r($session, true));
 
+            } else {
+                return 'expired';
+            }
         } else {
+
             return false;
         }
                 if (isset($session)){
@@ -115,7 +141,7 @@ abstract class SessionHandler {
                     ob_flush();
                     flush();
 
-                    return $session;
+                    return $session; 
                 } else {
                     return false;
         }

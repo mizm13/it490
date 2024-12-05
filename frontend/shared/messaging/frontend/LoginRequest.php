@@ -15,22 +15,30 @@ class LoginRequest extends \nba\shared\messaging\Request{
      */
     private string $email;
 
+        /**
+     * Users password
+     * @var string $password The user's entered plaintext password
+     */
+    private string $passwrd;
+
     /**
      * Creates new login request.
      * 
      * @param string $email
      */
-    public function __construct(string $email, string $type = 'login_request'){
-        $this->email = $email;
-        $this->type = $type;
+    public function __construct(string $email, string $password, string $type = 'login_request'){
+        $this->email    = $email;
+        $this->password = $password;
+        $this->type     = $type;
     
     }
 
     public function jsonSerialize(): mixed
     {
         return [
-            'type' => $this->type,
-            'email' => $this->email,
+            'type'     => $this->type,
+            'email'    => $this->email,
+            'password' => $this->password
         ];
     }
     
