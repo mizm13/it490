@@ -2059,7 +2059,25 @@ class MessageProcessor
                 return;
             }
        
-            try {
+	    try {
+		    $IDquery = $db->prepare('SELECT user_id FROM users WHERE email = ? LIMIT 1');
+        if (!$IDquery) {
+            echo "Failed to prepare the query: " . $db->error . "\n";
+            return;
+        }
+        $IDquery->bind_param("s", $email);
+        $IDquery->execute();
+        $result = $IDquery->get_result();
+        if (!$result) {
+            echo "Query execution failed: " . $db->error . "\n";
+            return;
+        }
+
+        if($result->num_rows > 0) {
+            $userData = $result->fetch_assoc();
+            $userID = $userData['user_id'];
+        }
+
                 // get the stored code and expiration
                 $query = $db->prepare("SELECT code, expiration FROM 2fa WHERE email = ?");
                 if (!$query) {
@@ -2086,10 +2104,10 @@ class MessageProcessor
                         echo "Failed to prepare the insert query: " . $db->error . "\n";
                         return;
                     }
-                    $insertQuery->bind_param("sssi", $token, $timestamp, $email, $user_id);
+                    $insertQuery->bind_param("sssi", $token, $timestamp, $email, $userID);
 
                     // Log the variables for debugging purposes
-                    echo "Token: $token\nTimestamp: $timestamp\nEmail: $email\nUser ID: $user_id\n";
+                    echo "Token: $token\nTimestamp: $timestamp\nEmail: $email\nUser ID: $userID\n";
 
                     if ($insertQuery->execute()) {
                         echo "Session information inserted successfully.\n";
