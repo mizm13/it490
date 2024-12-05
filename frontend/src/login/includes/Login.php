@@ -11,14 +11,6 @@ abstract class Login {
 
     private false|\nba\shared\Session $session;
 
-    /**
-     * Generates a 2FA code
-     * @return int
-     */
-    private static function generate2FACode() {
-        // Generate a 2FA code
-        return random_int(100000, 999999);
-    }
 
     private static function handleLogin() {
         //error_log(print_r($_POST["email"]));
@@ -50,26 +42,14 @@ abstract class Login {
                 }
 
                 if (!$hasError) {
-                    $session = \nba\src\lib\SessionHandler::login($email, $password);
 
-                    if($session == false){
-                        echo("Login attempt failed, please try again.");
-                        return;
-                    }
-
-                    // Generate2FA code
-                    $twoFACode = self::generate2FACode();
-                    $expirationTimestamp = time() + (3 * 60);
-                    // Send 2FA and email to the database
                     try {
-                        $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__ . '/hostt.ini', '2fa');
-
+                        /*Send request for new 2fa code */
+                        $rabbitClient = new \nba\rabbit\RabbitMQClient(__DIR__ . '/host.ini', 'Authentication');
 
                         $request = json_encode([
-                            'type' => '2fa',
-                            'email' => $email,
-                            'two_fa_code' => $twoFACode,
-                            'expiration' => $expirationTimestamp,
+                            'type' => 'new_2fa',
+                            'email' => $email
                         ]);
 
                         error_log("Request sent to RabbitMQ: " . print_r($request, true));
@@ -110,9 +90,7 @@ abstract class Login {
 
         <head>
             <?php echo \nba\src\lib\components\Head::displayHead();
-           echo \nba\src\lib\components\Nav::displayNav();?>
-
-
+                  echo \nba\src\lib\components\Nav::displayNav();?>
         </head>
 
         <body>
