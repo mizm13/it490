@@ -1995,19 +1995,30 @@ class MessageProcessor
             $insert2FAQuery = $db->prepare("INSERT INTO 2fa (email, code, expiration) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE code = ?, expiration = ?");
             if (!$insert2FAQuery) {
                 throw new Exception("Failed to prepare 2FA insert query: " . $db->error);
+                $this->response = [
+                    'type' => '2fa_response',
+                    'status' => 'error',
+                    'message' => $e->getMessage()
+                ];
             }
             $insert2FAQuery->bind_param("ssiss", $email, $twoFACode, $expiration, $twoFACode, $expiration);
             if (!$insert2FAQuery->execute()) {
                 throw new Exception("Failed to save 2FA code to the database.");
+                $this->response = [
+                    'type' => '2fa_response',
+                    'status' => 'error',
+                    'message' => $e->getMessage()
+                ];
             } else {
             $insert2FAQuery->close();
 
+            echo "calling send2fa";
             send2FAsms($email, $twoFACode);
 
             }
    
             // Response successful insert
-            $this->response = [
+            return $this->response = [
                 'type' => 'new_2fa_response',
                 'status' => 'success',
                 'message' => '2FA code successfully saved.'
@@ -2116,7 +2127,7 @@ class MessageProcessor
 
 
     private function send2FAsms($email, $twoFACode){
-        echo "Connecting to the database...\n";
+        echo "Connecting to the database... to send 2fa sms \n";
         $db = connectDB();
         if ($db === null) {
             error_log("Failed to connect to DB to send SMS");
@@ -2137,7 +2148,7 @@ class MessageProcessor
                         
             $rabbitMQClient = new rabbitMQClient(__DIR__.'/../../DMZ/SMS/testRabbitMQ.ini', 'SMS');
             $rabbitMQClient->publish($message);
-            
+
         } catch (Exception $e) {
             error_log($e->getMessage());
 

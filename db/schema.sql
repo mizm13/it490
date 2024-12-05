@@ -154,7 +154,13 @@ CREATE TABLE draft_picks (
     FOREIGN KEY (player_id) REFERENCES players(player_id)
 );
 
-
+CREATE TABLE 2fa (
+    email VARCHAR(255) NOT NULL,
+    code INT NOT NULL,
+    expiration INT NOT NULL,
+    PRIMARY KEY (email),
+    FOREIGN KEY (email) REFERENCES users(email)
+);
 
 
 
