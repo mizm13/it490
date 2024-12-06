@@ -2090,11 +2090,12 @@ class MessageProcessor
                 $query->bind_result($storedCode, $expiration);
                 if (!$query->fetch() || empty($storedCode)) {
                     throw new Exception("No 2FA record found for the provided email.");
-                }
+		}
+		echo "The stored code is $storedCode and the code from user is $enteredCode .";
                 $query->close();
        
                 // Validate the code and expiration
-                if ($enteredCode === $storedCode && time() <= $expiration) {
+                if ($enteredCode == $storedCode && time() <= $expiration) {
                     // Authentication successful, generate session token
                     $token = uniqid();
                     $timestamp = time() + (6 * 60 * 60);
