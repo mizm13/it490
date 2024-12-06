@@ -36,7 +36,7 @@ function sendMail($recipientEmail, $subject, $bodyText) {
                 ],
                 'Body' => [
                     'Html' => [
-                        'Data' => $bodyText,
+                        'Data' => 'Here is your invite code: ' . $bodyText,
                     ],
                 ],
             ],
@@ -51,20 +51,26 @@ function sendMail($recipientEmail, $subject, $bodyText) {
 function messageCallback($request) {
     echo "Request message received: " . print_r($request, true);
 
-    // If the request is not an array, decode it; otherwise, use it as-is
+    // Decode the message if not already an array
     $messageData = is_array($request) ? $request : json_decode($request, true);
 
-    //Validates required fields
-    if (isset($messageData['recipient_email'], $messageData['subject'], $messageData['body'])) {
-        $recipientEmail = $messageData['recipient_email'];
+    // Validate required fields
+    if (isset($messageData['emailFields'], $messageData['subject'], $messageData['body'])) {
+        $emailFields = $messageData['emailFields']; // Nested array of emails
         $subject = $messageData['subject'];
         $bodyText = $messageData['body'];
 
-        sendMail($recipientEmail, $subject, $bodyText);
+        // Iterate over email fields and send emails
+        foreach ($emailFields as $field => $recipientEmail) {
+            echo "Sending email to: $recipientEmail\n";
+            sendMail($recipientEmail, $subject, $bodyText);
+        }
     } else {
-        echo "Invalid message format. Required keys: recipient_email, subject, body.\n";
+        echo "Invalid message format. Required keys: emailFields, subject, body.\n";
     }
 }
+
+
 
 // Instantiate the RabbitMQServer class
 $rabbitMQServer = new RabbitMQServer(__DIR__.'/testRabbitMQ.ini', 'email');
