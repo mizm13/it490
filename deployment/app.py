@@ -22,11 +22,11 @@ QA_IP = {"frontend": "10.8.0.6", "backend": "10.8.0.5", "dmz": "10.8.0.9"}
 PROD_IP = {"frontend00": "10.8.0.6", "frontend01": "10.8.0.4", "backend00": "10.8.0.5", "backend01": "10.8.0.7", "dmz00": "10.8.0.9"}
 
 # Logging configuration. Remember to uncomment when in production
-logging.basicConfig(
-   filename='/var/log/deploy_flask_app.log',
-   level=logging.DEBUG,
-   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# logging.basicConfig(
+#    filename='/var/log/deploy_flask_app.log',
+#    level=logging.DEBUG,
+#    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# )
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(QA_DIR, exist_ok=True)
@@ -88,8 +88,8 @@ def get_table_data(table_name):
     try:
         cursor = connection.cursor()
 
-        # Query all rows from the specified table
-        cursor.execute(f"SELECT * FROM {table_name}")
+        # Query all rows with New status
+        cursor.execute(f"SELECT * FROM {table_name}_bundles WHERE status = 'New' ORDER BY lastUpdated DESC")
         rows = cursor.fetchall()
         columns = [desc[0] for desc in cursor.description]
         data = [dict(zip(columns, row)) for row in rows]
@@ -103,7 +103,39 @@ def get_table_data(table_name):
     except Exception as e:
         logging.error(f"Error querying table {table_name}: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
-
+    
+# Route to update a bundle's status from QA. Parameters given to API are: id, version, status, type and optional notes
+@app.route('/update_qa', methods=['POST'])
+def update_qa():
+    data = request.json
+    id = data['id']
+    version = data['version']
+    status = data['status']
+    bundle_type = data['type']
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({"success": False, "error": "Database connection failed"}), 500
+    
+    try:
+        cursor = connection.cursor()
+        last_updated = int(time.time())
+        
+        sql = f"""
+            UPDATE {bundle_type}_bundles SET status = %s, lastUpdated = %s
+            WHERE id = %s AND versionNumber = %s
+        """
+        
+        params = (status, last_updated, id, version)
+        cursor.execute(sql, params)
+        connection.commit()
+        return jsonify({"success": True, "message": "Bundle status updated successfully"})
+    except MySQLdb.Error as e:
+        logging.error(f"Database error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        cursor.close()
+            
+    
 
 def update_bundle_status(id, bundle_name, version, status, notes=None, bundle_type=None):
     # Validate the bundle type
@@ -176,21 +208,6 @@ def update_server_history(serverType, bundle_name, version):
         raise Exception(str(e))
     finally:
         cursor.close()
-
-# Route to update a bundle's status
-@app.route('/update_bundle', methods=['POST'])
-def update_bundle():
-    try:
-        data = request.json
-        bundle_name = data['bundle_name']
-        version = data['version']
-        status = data['status']
-        notes = data.get('notes', "")
-        result = update_bundle_status(bundle_name, version, status, notes)
-        return jsonify(result)
-    except Exception as e:
-        logging.error(f"Error in /update_bundle: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route('/upload', methods=['POST'])
@@ -316,14 +333,12 @@ def deploy_to_qa(serverType, version, cursor):
             try:
                 deploy_with_scp(local_file, server_ip, QA_DIR, base_directory, version, "root", "install.sh")
                 update_server_history(server_ip, new_package[1], new_package[2])
-                update_bundle_status(new_package[0], new_package[1], new_package[2], "Pass", bundle_type=serverType)
                 return jsonify({
                     "success": True,
                     "message": f"Deployment of new package {new_package[1]} version {new_package[2]} completed successfully."
                 })
             except Exception as e:
                 logging.error(f"Deployment failed: {e}")
-                update_bundle_status(new_package[0], new_package[1], new_package[2], "Fail", bundle_type=serverType)
                 rollback_to_latest_pass(serverType, cursor)
                 return jsonify({"success": False, 
                                 "message": f"Deployment of new package {new_package[1]} version {new_package[2]} failed. Rollback initiated.",

@@ -1,0 +1,71 @@
+#!/bin/bash
+
+query_table() {
+    echo "Querying table: $1"
+    RESPONSE=$(/usr/bin/curl -X GET "http://172.233.182.205:5000/database/$1" 2>/dev/null)
+
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to query the table."
+        exit 1
+    fi
+
+    echo "Server Response:"
+    echo "$RESPONSE"
+}
+
+set_package_status() {
+    # Check to see if all parameters are set echo "Usage: qa --set <frontend|backend|dmz> --id <package_id> --version <version> --status <status>"
+    if [ "$#" -ne 8 ]; then
+        echo "Error: Invalid number of parameters."
+        echo "Usage: qa --set <frontend|backend|dmz> --id <package_id> --version <version> --status <status>"
+        exit 1
+    fi
+
+    # Print all arguments and their positions
+    echo "Package Type: $2"
+    echo "Package ID: $4"
+    echo "Version: $6"
+    echo "Status: $8"
+
+    echo "Setting package status..."
+    RESPONSE=$(/usr/bin/curl -H "Content-Type: application/json" -X POST "http://172.233.182.205:5000/update_qa" \
+    -d '{"type": "'"$2"'", "id": "'"$4"'", "version": "'"$6"'", "status": "'"$8"'"}' 2>/dev/null)
+
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to set the package status."
+        exit 1
+    fi
+
+    echo "Server Response:"
+    echo "$RESPONSE"
+}
+
+# Main function
+# Check to see if flag is set
+if [ -z "$1" ]; then
+    echo "Error: No flag specified."
+    echo "Usage: qa --set <frontend|backend|dmz> <status> or qa --query <frontend|backend|dmz>"
+    exit 1
+fi
+
+# Check to see if flag is valid
+if [ "$1" != "--query" ] && [ "$1" != "--set" ]; then
+    echo "Error: Invalid flag specified."
+    echo "Usage: qa --set <frontend|backend|dmz> <status> or qa --query <frontend|backend|dmz>"
+    exit 1
+fi
+
+# Check to see if package type is set
+if [ -z "$2" ]; then
+    echo "Error: No package type specified."
+    echo "Usage: qa --set <frontend|backend|dmz> <status> or qa --query <frontend|backend|dmz>"
+    exit 1
+fi
+
+if [ "$1" == "--query" ]; then
+    query_table "$2"
+elif [ "$1" == "--set" ]; then
+    set_package_status "$@"
+fi
+
+exit 0
