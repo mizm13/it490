@@ -11,8 +11,7 @@ abstract class Registration {
         self::handleRegistration();
 ?>
 
-    <!DOCTYPE html>
-    <html lang='en'>
+
 
         <head>
             <?php echo \nba\src\lib\components\Head::displayHead();
