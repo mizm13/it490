@@ -813,7 +813,7 @@ class MessageProcessor
     $rabbitMQC = new RabbitMQClient(__DIR__.'/../host.ini', 'email');
     $message = ['body'            => $inviteCode,
                 'subject'         => "Invitation to Join a JJEMM NBA Fantasy League",
-                'recipient_email' => $data[$emailFields]
+                'recipient_emails' => $data[$emailFields]
     ];
     error_log("Invite code data sent to DMZ from backend: " . print_r($message,true));
     $rabbitMQC->publish($message);
