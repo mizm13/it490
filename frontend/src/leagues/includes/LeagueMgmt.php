@@ -115,14 +115,13 @@ abstract class LeagueMgmt{
 
                     $inviteCode = substr(str_shuffle("0123456789abcdefghijklmnopqrstuvwxyz"), 0, 10);
                     $data = [
-                        'type' => 'create_league_request',
-                        'league_name' => $league_name,
-                        'team_name'   => $team_name,
-                        'email'       => $session->getEmail(),
-                        'invite_code' => $inviteCode
+                        'type'          => 'create_league_request',
+                        'league_name'   => $league_name,
+                        'team_name'     => $team_name,
+                        'email'         => $session->getEmail(),
+                        'invite_code'   => $inviteCode,
+                        'invite_emails' => $emailFields
                     ];
-
-                    $data = array_merge($data, $emailFields);
 
                     $rabbitClient = new RabbitMQClient(__DIR__.'/../../../rabbit/host.ini', "Authentication");
                     $response = $rabbitClient->send_request(json_encode($data), 'application/json');

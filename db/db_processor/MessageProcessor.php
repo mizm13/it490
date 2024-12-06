@@ -790,7 +790,6 @@ class MessageProcessor
         $teamQuery->close();
         echo "User's team created successfully.\n";
         $db->commit();
-        /*TODO: add code for invite code and include in response*/
         $this->response = [
             'type' => 'create_league_response',
             'result' => 'true',
@@ -810,6 +809,14 @@ class MessageProcessor
         ];
     }
     $db->close();
+
+    $rabbitMQC = new RabbitMQClient(__DIR__.'/../host.ini', 'email');
+    $message = ['body'            => $inviteCode,
+                'subject'         => "Invitation to Join a JJEMM NBA Fantasy League",
+                'recipient_email' => $data[$emailFields]
+    ];
+    error_log("Invite code data sent to DMZ from backend: " . print_r($message,true));
+    $rabbitMQC->publish($message);
     }
 
     /**
