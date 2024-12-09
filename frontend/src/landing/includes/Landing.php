@@ -15,9 +15,9 @@ abstract class Landing {
         ?>
         <html>
         <!DOCTYPE html>
-        <html lang="en">
-
+        <html lang='en'>
         <head>
+
             
            <?php 
            echo \nba\src\lib\components\Head::displayHead();
