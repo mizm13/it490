@@ -115,6 +115,42 @@ deploy_prod() {
     echo "Deployment to production completed successfully."
 }
 
+# Rollback the deployment to a previous version that passed. Must pass id as an argument
+rollback() {
+    echo "Rolling back to a previous version..."
+    # Check if the required serverType and id arguments are provided
+    if [ "$#" -ne 3 ]; then
+        echo "Usage: $0 -r <serverType> <id>"
+        echo "Arguments: $@"
+        exit 1
+    fi
+
+    if [ "$2" != "frontend00" ] && [ "$2" != "frontend01" ] && [ "$2" != "backend00" ] && [ "$2" != "backend01" ] && [ "$2" != "dmz00" ]; then
+        echo "Error: Invalid type specified. Valid types are: frontend00/frontend01, backend00/backend01, dmz00/dmz01."
+        exit 1
+    fi
+
+    ID=$3
+
+    RESPONSE=$(/usr/bin/curl -F "id=$ID" -X POST "http://172.233.182.205:5000/rollback/$2" 2>/dev/null)
+
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to rollback the deployment."
+        exit 1
+    fi
+
+    echo "Server Response:"
+    echo "$RESPONSE"
+
+    if ! echo "$RESPONSE" | grep -q '"success": true'; then
+        echo "Error: Rollback failed. Please check the server response for more details."
+        exit 1
+    fi
+
+    echo "Rollback completed successfully."
+}
+
+
 # Test package test. Dry run to test the deployment
 deploy_test() {
     echo "Testing deployment parameters..."
@@ -188,12 +224,12 @@ trap cleanup EXIT
 # Main
 
 if [ "$#" -eq 0 ]; then
-    echo "Usage: $0 [-t] [-q] [-p] <directory|type>"
+    echo "Usage: $0 [-t] [-q] [-p] [-r] <directory|type>"
     exit 1
 fi
 
 if [[ "$1" == -* ]]; then
-    while getopts ":tqp" opt; do
+    while getopts ":tqpr" opt; do
         case $opt in
             t)
                 deploy_test "${@: -1}"
@@ -203,6 +239,9 @@ if [[ "$1" == -* ]]; then
                 ;;
             p)
                 deploy_prod "${@: -1}"
+                ;;
+            r)
+                rollback "$@"
                 ;;
             \?)
                 echo "Invalid option: -$OPTARG"
@@ -215,7 +254,7 @@ if [[ "$1" == -* ]]; then
         esac
     done
 else
-    echo "Usage: $0 [-t] [-q] [-p] <directory>"
+    echo "Usage: $0 [-t] [-q] [-p] [-r] <directory>"
     exit 1
 fi
 

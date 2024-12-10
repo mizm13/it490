@@ -394,8 +394,53 @@ def deploy_to_prod(serverType):
         return jsonify({"success": False, "error": str(e)}), 500
     finally:
         cursor.close()
+        
+# Route to rollback to one of the 5 latest packages with status "Pass" in the database
+@app.route('/rollback/<serverType>', methods=['POST'])
+def rollback(serverType):
+    id = request.form.get('id')
+    connection = get_db_connection()
+    
+    # If no ID is provided, return error
+    if not id:
+        return jsonify({"success": False, "error": "ID is required for rollback"}), 400
+    if not connection:
+        return jsonify({"success": False, "error": "Database connection failed"}), 500
+    cursor = connection.cursor()
+    
+    try:
+        cursor.execute(f"SELECT * FROM {serverType}_bundles WHERE id = {id}")
+        package = cursor.fetchone()
+        
+        if not package:
+            return jsonify({"success": False, "error": f"Package with ID {id} not found in the database"}), 404
+        
+        local_file = f"/var/deploy/uploads/{serverType}_{package[1]}_{package[2]}.tar.gz"
+        base_directory = f"/var/deploy/{serverType}_{package[1]}"
+        if not os.path.exists(local_file):
+            return jsonify({"success": False, "error": f"Package file not found: {local_file}"}), 404
+        
+        try:
+            deploy_to_qa(serverType, package[2], cursor)
+            deploy_with_scp(local_file, PROD_IP[serverType], PROD_DIR, base_directory, package[2], "root", "install.sh")
+            update_server_history(QA_IP[serverType], package[1], package[2])
+            return jsonify({
+                "success": True,
+                "message": f"Rollback to package {package[1]} version {package[2]} completed successfully."
+            })
+        except Exception as e:
+            logging.error(f"Rollback failed: {e}")
+            return jsonify({"success": False, 
+                            "message": f"Rollback to package {package[1]} version {package[2]} failed.",
+                            "error": str(e)}), 500
+    except Exception as e:
+        logging.error(f"Error during rollback: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        cursor.close()
 
-def rollback_to_latest_pass(serverType, cursor):
+
+def rollback_to_latest_pass(serverType, cursor=None):
     connection = get_db_connection()
     if not connection:
         return jsonify({"success": False, "error": "Database connection failed"}), 500
