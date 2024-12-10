@@ -229,6 +229,7 @@ class MessageProcessor
         echo "Starting registration process...\n";
         $email = $request['email'];
         $password = $request['password'];
+        $phone = $request['phone'];
 
         /* Hash the password, BCRYPT algo by */
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
@@ -288,7 +289,7 @@ class MessageProcessor
 
 
     // Prepare an insert statement to register the new user
-    $insertQuery = $db->prepare("INSERT INTO users (email, hashed_password) VALUES (?, ?)");
+    $insertQuery = $db->prepare("INSERT INTO users (email, hashed_password, phone_number) VALUES (?, ?, ?)");
     if (!$insertQuery) {
         echo "Failed to prepare insert query: " . $db->error . "\n";
         $this->response = [
@@ -301,7 +302,7 @@ class MessageProcessor
     }
 
     // Bind the parameters (email, hashed password)
-    $insertQuery->bind_param("ss", $email, $hashedPassword);
+    $insertQuery->bind_param("sss", $email, $hashedPassword, $phone);
 
     // Execute the insert statement
     if ($insertQuery->execute()) {
@@ -726,6 +727,7 @@ class MessageProcessor
     $ownerEmail = $request['email'];
     $teamName = $request['team_name'];
     $inviteCode = $request['invite_code'];
+    $inviteEmails = $request['invite_emails'];
 
     echo "Connecting to the database...\n";
     $db = connectDB();
@@ -790,7 +792,17 @@ class MessageProcessor
         $teamQuery->close();
         echo "User's team created successfully.\n";
         $db->commit();
-        $this->response = [
+
+
+	    $rabbitMQC = new RabbitMQClient(__DIR__.'/../host.ini', 'email');
+    	$message = ['body'            => $inviteCode,
+        	        'subject'         => "Invitation to Join a JJEMM NBA Fantasy League",
+                	'emailFields' => $inviteEmails
+    	];
+    	error_log("Invite code data sent to DMZ from backend: " . print_r($message,true));
+    	$rabbitMQC->publish(json_encode($message));
+
+	$this->response = [
             'type' => 'create_league_response',
             'result' => 'true',
             'message' => "League '$leagueName' and team '$teamName' created successfully."
@@ -810,14 +822,7 @@ class MessageProcessor
     }
     $db->close();
 
-    $rabbitMQC = new RabbitMQClient(__DIR__.'/../host.ini', 'email');
-    $message = ['body'            => $inviteCode,
-                'subject'         => "Invitation to Join a JJEMM NBA Fantasy League",
-                'recipient_emails' => $data[$emailFields]
-    ];
-    error_log("Invite code data sent to DMZ from backend: " . print_r($message,true));
-    $rabbitMQC->publish($message);
-    }
+}
 
     /**
      * Function for regular user to create a team.
@@ -1553,20 +1558,18 @@ class MessageProcessor
                 return $this->response;
             }
 
-            // Cast draftStarted and draftCompleted to integers
-            $draftStarted = (int)$draftStarted;
-            $draftCompleted = (int)$draftCompleted;
 
-            if ($draftStarted === 1) {
-                if ($draftCompleted === 0) {
+            if ($draftStarted) {
+                if (!$draftCompleted) {
                     error_log("Draft started and not completed.");
-                    $this->response = ['result' => 'true',
+                    $this->response = ['result' => 'true', 'completed' => 'false',
                     'league' => $leagueId
                     ]; // Allow access to the draft page
                 } else {
                     error_log("Draft has been completed.");
                     $this->response = [
-                        'result' => 'false', 
+                        'result' => 'true', 
+                        'completed' => 'true',
                         'message' => 'The draft has already been completed.'
                         
                     ];
@@ -1574,7 +1577,7 @@ class MessageProcessor
             } else {
                 error_log("Draft has not started.");
                 $this->response = [
-                    'result' => 'true', 
+                    'result' => 'false', 
                     'message' => 'The draft has not started yet. Please proceed to start'
                 ];
             }
@@ -1590,13 +1593,7 @@ class MessageProcessor
             $this->response = ['result' => 'false', 'error' => 'An error occurred: ' . $e->getMessage()];
             error_log("Response being sent: " . json_encode($response));
             return $response;
-        } catch (Throwable $e) {
-            $db->rollback();
-            error_log("An unexpected error occurred: " . $e->getMessage());
-            $this->response = ['result' => 'false', 'error' => 'An unexpected error occurred: ' . $e->getMessage()];
-            error_log("Response being sent: " . json_encode($response));
-            return $response;
-        } finally {
+        }finally {
             // Close the connection only in the finally block
             $db->close();
         }

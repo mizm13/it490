@@ -83,13 +83,16 @@ CREATE TABLE fantasy_leagues (
     league_name VARCHAR(255) NOT NULL,
     created_by VARCHAR(255), -- references a user who created the league
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    is_active BOOLEAN DEFAULT TRUE
+    invite_code VARCHAR(25) NOT NULL,
+    draft_started BOOLEAN DEFAULT TRUE,
+    draft_completed BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE fantasy_teams (
     team_id INT AUTO_INCREMENT PRIMARY KEY,
     league_id INT, -- foreign key references leagues(league_id)
     team_name VARCHAR(255) NOT NULL,
+    owner_email VARCHAR(255) NOT NULL,
     owner_id INT, -- references the user who owns the team
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (league_id) REFERENCES fantasy_leagues(league_id)

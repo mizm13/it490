@@ -64,20 +64,23 @@ abstract class Draft {
             error_log("Response array is: ".print_r($response,true));
 
             if(isset($response['result']) && $response['result'] == 'true'){
-
-                $leagueId = $response['league'];
-                $request = json_encode(['type' => 'get_draft_players', 'league' => $leagueId]);
-                error_log("Request sent is ". print_r($request,true));
-                $response = $rabbitClient->send_request($request, 'application/json');
-                //$response = json_decode($responseJson, true);
-                error_log("Response array is: ".print_r($response,true));
-
-                if (isset($response['data'])) {
-                    $responseData = $response['data'];
+                if (isset($response['completed']) && ($response['completed'] == 'true')){
+                    echo("The draft for this league has already ended.  Please join or create a new league to draft again!!\n");
                 } else {
-                    throw new \Exception('No data received from RabbitMQ');
+                    $leagueId = $response['league'];
+                    $request = json_encode(['type' => 'get_draft_players', 'league' => $leagueId]);
+                    error_log("Request sent is ". print_r($request,true));
+                    $response = $rabbitClient->send_request($request, 'application/json');
+                    //$response = json_decode($responseJson, true);
+                    error_log("Response array is: ".print_r($response,true));
+
+                    if (isset($response['data'])) {
+                        $responseData = $response['data'];
+                    } else {
+                        throw new \Exception('No data received from RabbitMQ');
+                    }
                 }
-            //}
+            }
         } catch(\Exception $e){
             echo("Unable to get draft status, please reload to try again");
             error_log('Error in Draft.php: ' . $e->getMessage());
