@@ -1,4 +1,5 @@
 <?php
+require_once(__DIR__.'/../connectDB.php');
 
 /**
  * Class that handles fantasy points generation/updates, league standings,
@@ -11,7 +12,7 @@ class Scoring {
      * using ISO-8601 weeks, 52 per year
      * @param string $gameDate
      */
-    private function getWeekNumber($gameDate){
+    public function getWeekNumber($gameDate){
         return date('W', strtotime($gameDate));
     }
 
@@ -19,7 +20,7 @@ class Scoring {
      * Method to get player's stats and group them by player and week
      * @param none
      */
-    private function getPlayerStatsByWeek() {
+    public function getPlayerStatsByWeek($leagueId) {
         echo "Connecting to the database...\n";
         $db = connectDB();
 
@@ -28,24 +29,30 @@ class Scoring {
             return;
         }
 
-        $query = "SELECT
-                        ps.player_id, 
-                        SUM(ps.points as total_points,
-                        SUM(ps.rebounds) as total_rebounds,
-                        SUM(ps.assists) as total_assists,
-                        SUM(ps.blocks) as total_blocks,
-                        SUM(ps.steals) as total_steals,
-                        WEEK(g.game_date, 1) as week_number
-                        /* 1 sets the week to start on monday, we can change */
-                    FROM
-                        player_stats ps
-                    INNER JOIN
-                        games g on ps.game_id = g.game_id
-                    GROUP BY
-                        ps.player_id, week_number
-                    ";
-        
-        $result = $db->query($query);
+        $query = $db->prepare("SELECT
+                ps.player_id,
+                SUM(ps.points) AS total_points,
+                SUM(ps.rebounds) AS total_rebounds,
+                SUM(ps.assists) AS total_assists,
+                SUM(ps.blocks) AS total_blocks,
+                SUM(ps.steals) AS total_steals,
+                fw.week_number,
+                fw.league_id
+                FROM player_stats ps
+                INNER JOIN games g ON ps.game_id = g.game_id
+                INNER JOIN fantasy_weeks fw ON (g.game_date BETWEEN fw.start_date AND fw.end_date)
+                WHERE fw.league_id = ?
+                GROUP BY ps.player_id, fw.week_number, fw.league_id");
+                    
+        $query->bind_param("i", $leagueId);
+        $query->execute();
+        $result = $query->get_result();
+
+        if(!$result) {
+            echo "Error running query: " . $db->error . "\n";
+            $db->close();
+            return [];
+        }
 
         /* fetches all rows in the result and returns them as an associative array */
         $stats = $result->fetch_all(MYSQLI_ASSOC);
@@ -60,7 +67,7 @@ class Scoring {
      * @param int $week the current week of the season
      * @param 
     */
-    private function calculateTeamScores($team_id, $db) {
+    public function calculateTeamScores($team_id, $leagueId, $weekNumber) {
         /* TODO: adjust code to work for all players, not only those that are drafted
            TODO: update draft/add player tables with points data */
         echo "Start calculating team and player scores to fantasy points.\n";
@@ -73,7 +80,6 @@ class Scoring {
         }
 
         echo "Database connection successful.\n";
-        $currentWeek = date('W');
         $playersQuery = $db->prepare("SELECT player_id FROM fantasy_team_players WHERE team_id = ?");
         $playersQuery->bind_param("i", $team_id);
         $playersQuery->execute();
@@ -85,8 +91,21 @@ class Scoring {
             $player_id = $row['player_id'];
     
             // Get player statistics for the week
-            $statsQuery = $db->prepare("SELECT points_scored, rebounds, assists, steals, blocks FROM player_stats WHERE player_id = ? AND week = ?");
-            $statsQuery->bind_param("ii", $player_id, $currentWeek);
+            $statsQuery = $db->prepare("
+            SELECT 
+                ps.player_id, 
+                SUM(ps.points) as total_points,
+                SUM(ps.rebounds) as total_rebounds,
+                SUM(ps.assists) as total_assists,
+                SUM(ps.blocks) as total_blocks,
+                SUM(ps.steals) as total_steals
+            FROM player_stats ps
+            INNER JOIN games g ON ps.game_id = g.game_id
+            INNER JOIN fantasy_weeks fw ON (g.game_date BETWEEN fw.start_date AND fw.end_date)
+            WHERE ps.player_id = ? AND fw.league_id = ? AND fw.week_number = ?
+            GROUP BY ps.player_id
+        ");
+            $statsQuery->bind_param("iii", $player_id, $leagueId, $weekNumber);
             $statsQuery->execute();
             $statsResult = $statsQuery->get_result();
     
@@ -108,18 +127,16 @@ class Scoring {
      * TODO: run this for every player when the game data is updated. 
      * TODO: create a table for player's points for each week that will be updated using this function
      * TODO: Find a way to only update players that actually played?(Based on NBA team id)*/ 
-    private function calculatePlayerScore($stats) {
-        $fantasyPoints = [];
+    public function calculatePlayerScore($stat) {
+        // $fantasyPoints = [];
 
-        foreach ($stats as $stat) {
-            $playerId   = $stat['player_id'];
-            $weekNumber = $stat['week_number'];
+        // foreach ($stats as $stat) {
             $points     = $stat['total_points'];
             $rebounds   = $stat['total_rebounds'];
             $assists    = $stat['total_assists'];
             $blocks     = $stat['total_blocks'];
             $steals     = $stat['total_steals'];
-        }
+        //}
 
         $totalFantasyPoints = 
                             ($points * 1) +
@@ -128,18 +145,20 @@ class Scoring {
                             ($steals * 2) +
                             ($blocks * 2);
         
+        return $totalFantasyPoints;
+        /*
         $fantasyPoints[] = [
                             'player_id'      => $playerid,
                             'week_number'    => $weekNumber,
                             'fantasy_points' => $totalFantasyPoints
-                        ];
+                        ];*/
     }
     
     /**
      * Method to add up the total points for a team per week
      * @param float fantasy points
      */
-    function getTeamScorePerWeek($fantasyPoints) {
+    public function getTeamScorePerWeek($fantasyPoints) {
         echo "Connecting to the database...\n";
         $db = connectDB();
 
@@ -172,7 +191,7 @@ class Scoring {
                 $leagueId = $row['league_id'];
                 $key      = $leagueId . '_' . $teamId . '_' . $weekNumber;
 
-                if(!isset($teamscore[$key])) {
+                if(!isset($teamScores[$key])) {
                     $teamScores[$key] = [
                                         'league_id'    => $leagueId,
                                         'team_id'      => $teamId,
@@ -193,7 +212,7 @@ class Scoring {
      * Method to update the scores of teams in the DB.
      * @param mixed $teamScores the scores of teams, the key is $leagueId_$teamId_$weekNumber
      */
-    function updateMatchups($teamScores) {
+    public function updateMatchups($teamScores) {
         echo "Connecting to the database...\n";
         $db = connectDB();
 
@@ -201,12 +220,12 @@ class Scoring {
             echo "Failed to connect to the database.\n";
             return;
         }
-        
+        echo(print_r($teamScores));
         foreach ($teamScores as $score) {
             $leagueId    = $score['league_id'];
-            $teamId      = $score['teamd_id'];
+            $teamId      = $score['team_id'];
             $weekNumber  = $score['week_number'];
-            $totalPoints = $score['total_points]'];
+            $totalPoints = $score['total_points'];
 
             $query = "SELECT
                             matchup_id, team1_id, team2_id
@@ -248,17 +267,18 @@ class Scoring {
                 $updateStmt->execute();
                 $updateStmt->close();
             } else {
-                error_log("No matchup found for team $teamId in league # $leagueId for week $weeknumber");
+                error_log("No matchup found for team $teamId in league # $leagueId for week $weekNumber");
             }
-            $db->close();
         }
+        $db->close();
+
     }
 
 
     /**
      * 
      */
-    function updateStandings() {
+    public function updateStandings() {
         echo "Connecting to the database...\n";
         $db = connectDB();
 
@@ -324,53 +344,136 @@ class Scoring {
      * Method to create the matchup schedule for the season.
      * Should be called when draft is finished.
      */
-    public function create_matchup_schedule(){
+    public function create_matchup_schedule($leagueId){
         
-        /*TODO */
-    }
+        $db = connectDB();
+        if ($db === null) {
+            die("Cannot connect to database.\n");
+        }
+
+        $teamQuery = $db->prepare("SELECT team_id FROM fantasy_teams WHERE league_id = ?");
+        $teamQuery->bind_param("i", $leagueId);
+        $teamQuery->execute();
+        $result = $teamQuery->get_result();
+
+        $teams = [];
+        while ($row = $result->fetch_assoc()) {
+            $teams[] = $row['team_id'];
+        }
+        $teamQuery->close();
+
+        $numTeams = count($teams);
+        if ($numTeams < 2) {
+            echo "Not enough teams to create matchups.\n";
+            $db->close();
+            return;
+        }
+
+        // Add a bye if odd number of teams
+        if ($numTeams % 2 != 0) {
+            $teams[] = null; 
+            $numTeams++;
+        }
+
+        // One full cycle of a round-robin is (numTeams - 1) weeks
+        $weeksPerCycle = $numTeams - 1;
+        $totalWeeks = 19;
+        $startDate = new DateTime('2024-10-21');
+
+        // Determine how many full cycles and remainder weeks to reach totalWeeks
+        $fullCycles = intdiv($totalWeeks, $weeksPerCycle);
+        $remainder = $totalWeeks % $weeksPerCycle;
+
+        $currentWeek = 1;
+
+        // Function to insert matchups for a given week (inlined logic)
+        $insertWeeklyMatchups = function($teams, $week) use ($db, $leagueId, $startDate, $numTeams) {
+            $matchupsPerWeek = $numTeams / 2;
+            $roundMatchups = [];
+
+            // Build matchups for this week
+            for ($i = 0; $i < $matchupsPerWeek; $i++) {
+                $home = $teams[$i];
+                $away = $teams[$numTeams - 1 - $i];
+                // Only insert if both are real teams
+                if ($home !== null && $away !== null) {
+                    $roundMatchups[] = [$home, $away];
+                }
+            }
+
+            // Calculate the match date for this week
+            $matchDate = clone $startDate;
+            $matchDate->modify('+' . ($week - 1) . ' week');
+            $dateStr = $matchDate->format('Y-m-d');
+
+            // Insert each matchup into DB
+            foreach ($roundMatchups as $m) {
+                list($team1, $team2) = $m;
+                $insert = $db->prepare("INSERT INTO matchups (league_id, team1_id, team2_id, week, match_date) VALUES (?,?,?,?,?)");
+                $insert->bind_param("iiiis", $leagueId, $team1, $team2, $week, $dateStr);
+                $insert->execute();
+                $insert->close();
+            }
+        };
 
 
+        $rotateTeams = function($teams) {
+            $fixed = $teams[0];
+            $rest = array_slice($teams, 1);
+            $last = array_pop($rest);
+            array_unshift($rest, $last);
+            return array_merge([$fixed], $rest);
+        };
 
-//the below functions will be moved to the messageProcessor class when finished
+        /* Generate multiple full cycles as needed */
+        for ($c = 0; $c < $fullCycles; $c++) {
+            for ($w = 1; $w <= $weeksPerCycle; $w++) {
+                $insertWeeklyMatchups($teams, $currentWeek);
+                $teams = $rotateTeams($teams);
+                $currentWeek++;
+            }
+        }
 
-    /**
-     * Function to get current weekly matchup and points data
-     * and return to frontend.
-     */
-    public function processor_get_weekly_matchup(){
-        
-        /*TODO */
-        //request = ['type' => 'get_weekly_matchups', 'league' => $leagueId]
+        // Generate remainder weeks if needed
+        for ($w = 1; $w <= $remainder; $w++) {
+            $insertWeeklyMatchups($teams, $currentWeek);
+            $teams = $rotateTeams($teams);
+            $currentWeek++;
+        }
 
-    }
-    
-    /**
-     * Function to view team's players and points data throughout entire season.
-     * Points are displayed per player, per week.
-     */
-    public function processor_get_team_data(){
+        $db->close();
+        echo "19-week schedule generated successfully for league $leagueId.\n";
+        }
 
-        /*TODO */
-        //request = json_encode(['type'=>'get_team_data','email' => $email])
+    public function populateWeeksTable($leagueId) {
 
-    }
+        $totalWeeks = 19;
+        $leagueStartDate = new DateTime('2024-10-21'); // The first fantasy week starts here
 
-    /**
-     * Function that returns league standings 
-     * when requested by frontend.
-     */
-    public function processor_get_league_standings(){
-        
-        //Currently just using team data with standing for this, possbily redundant?
-        /*TODO */
-    }
+        $db = connectDB();
+        if ($db === null) {
+            die("Cannot connect to database.\n");
+        }
 
-    /**
-     * Function that returns entire list of matchups for the season,
-     * shows current standings.
-     */
-    public function processor_get_all_matchups(){
-        
-        /*TODO */
+        // Populate the fantasy_weeks table
+        for ($week = 1; $week <= $totalWeeks; $week++) {
+            // Start date for this week is leagueStartDate + (week-1)*7 days
+            $startDate = clone $leagueStartDate;
+            $startDate->modify('+' . ($week - 1) . ' week');
+            $startDateStr = $startDate->format('Y-m-d');
+
+            $endDate = clone $startDate;
+            $endDate->modify('+6 days');
+            $endDateStr = $endDate->format('Y-m-d');
+
+            $insert = $db->prepare("INSERT INTO fantasy_weeks (league_id, week_number, start_date, end_date) VALUES (?,?,?,?)");
+            $insert->bind_param("iiss", $leagueId, $week, $startDateStr, $endDateStr);
+            $insert->execute();
+            $insert->close();
+        }
+
+        $db->close();
+
+        echo "Fantasy weeks populated successfully for league $leagueId.\n";
     }
 }

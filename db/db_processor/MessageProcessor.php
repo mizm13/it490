@@ -5,6 +5,7 @@
  */
 require_once(__DIR__.'/../connectDB.php');
 require(__DIR__.'/../RabbitMQClient.php');
+require_once('Scoring.php');
 
 
 
@@ -1932,6 +1933,9 @@ class MessageProcessor
                     $updateLeagueQuery->bind_param("i", $leagueId);
                     $updateLeagueQuery->execute();
                     $updateLeagueQuery->close();
+                    $scoring = new Scoring();
+                    $scoring->create_matchup_schedule($leagueId);
+                    $scoring->populateWeeksTable($leagueId);
                 } else {
                     $updateLeagueQuery = $db->prepare("UPDATE fantasy_leagues SET current_round_number = ?, current_pick_number = ? WHERE league_id = ?");
                     $updateLeagueQuery->bind_param("iii", $nextRoundNumber, $nextPickNumber, $leagueId);
