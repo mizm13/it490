@@ -13,7 +13,7 @@ $apikey = $_ENV["TEXTBELTAPI_KEY"];
 
 $ch = curl_init('https://textbelt.com/text');
 $data = array(
-  'phone' => 2014497700,
+  'phone' => 2010000000,
   'message' => 'Hello IT490 world 123',
   'key' => $apikey,
 );
