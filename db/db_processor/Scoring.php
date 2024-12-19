@@ -101,7 +101,8 @@ class Scoring {
                  FROM 
                     matchups m
                 WHERE 
-                    m.team1_score IS NOT NULL AND m.team2_score IS NOT NULL AND m.winner_team_id IS NULL";
+                    m.team1_score > 0 AND m.team2_score > 0
+                    AND m.standings_processed = 0";
 
         $result = $db->query($query);
         while ($matchup = $result->fetch_assoc()) {
@@ -111,6 +112,10 @@ class Scoring {
             $team1Score = $matchup['team1_score'];
             $team2Score = $matchup['team2_score'];
 
+            $team1Score = (int)$matchup['team1_score'];
+
+            $team2Score = (int)$matchup['team2_score'];
+            echo("team 1 score is $team1Score and team 2 score is $team2Score \n");
             if ($team1Score > $team2Score) {
                 $winnerTeamId = $team1Id;
                 $loserTeamId = $team2Id;
@@ -121,12 +126,13 @@ class Scoring {
                 /* There is a tie */
                 $winnerTeamId = null;
             }
+            echo("the winner is". $winnerTeamId);
 
             /*Update matchup with winner*/
             $updateMatchup = "UPDATE 
                                 matchups
                               SET 
-                                winner_team_id = ?
+                                standings_processed = 1, winner_team_id = ?
                             WHERE 
                                 matchup_id = ?";
 
@@ -136,7 +142,8 @@ class Scoring {
             $stmt->close();
 
             /*Update standings*/
-            if ($winnerTeamId) {
+            //echo("for this matchup the winner is " . $winnerTeamId);
+            if ($winnerTeamId != null) {
                 // Winner gets a win, loser gets a loss
                 $db->query("UPDATE standings SET wins = wins + 1 WHERE league_id = $leagueId AND team_id = $winnerTeamId");
                 $db->query("UPDATE standings SET losses = losses + 1 WHERE league_id = $leagueId AND team_id = $loserTeamId");
@@ -253,6 +260,32 @@ class Scoring {
             $currentWeek++;
         }
 
+        /*Creating entries into the standings table for a league once it has a matchups table*/
+        $sql = "
+        INSERT INTO standings (league_id, team_id, points, wins, losses, ties)
+        SELECT ft.league_id, ft.team_id, 0, 0, 0, 0
+        FROM fantasy_teams ft
+        WHERE ft.league_id = ?
+        ON DUPLICATE KEY UPDATE league_id = ft.league_id
+        ";
+
+        // Prepare and bind parameters
+        $stmt = $db->prepare($sql);
+        if (!$stmt) {
+        die("Failed to prepare statement: " . $db->error);
+        }
+
+        $stmt->bind_param("i", $leagueId);
+
+        // Execute the query
+        if ($stmt->execute()) {
+        echo "Standings initialized for league_id: $leagueId\n";
+        } else {
+        echo "Error executing insert: " . $stmt->error . "\n";
+        }
+
+        $stmt->close();
+
         $db->close();
         echo "19-week schedule generated successfully for league $leagueId.\n";
         }
@@ -352,20 +385,21 @@ class Scoring {
             $fantasyPoints = $ps['fantasy_points'];
     
             /*Find the fantasy team that this player belongs to*/
-            $teamQuery = $db->prepare("SELECT team_id FROM fantasy_team_players WHERE player_id = ? AND league_id = ?");
+            $teamQuery = $db->prepare("SELECT ftp.team_id, ftp.league_id FROM fantasy_team_players ftp WHERE ftp.player_id = ? AND ftp.league_id = ?");
             $teamQuery->bind_param("ii", $playerId, $leagueId);
             $teamQuery->execute();
             $teamResult = $teamQuery->get_result();
 
             while ($teamRow = $teamResult->fetch_assoc()) {
                 $teamId = $teamRow['team_id'];
+                $leagueId = $teamRow['league_id'];
                 /*Insert or update weekly_fantasy_scores*/
                 $insert = $db->prepare("
-                    INSERT INTO weekly_fantasy_scores (player_id, team_id, week_number, total_points)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO weekly_fantasy_scores (player_id, team_id, league_id, week_number, total_points)
+                    VALUES (?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE total_points = ?");
 
-                $insert->bind_param("iiiii", $playerId, $teamId, $weekNumber, $fantasyPoints, $fantasyPoints);
+                $insert->bind_param("iiiiii", $playerId, $teamId, $leagueId, $weekNumber, $fantasyPoints, $fantasyPoints);
                 $insert->execute();
                 $insert->close();
             }
