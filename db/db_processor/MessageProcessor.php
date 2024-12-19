@@ -112,19 +112,19 @@ class MessageProcessor
             case 'trade_player_request':
                 $this->processorTradePlayers($request);
                 break;
-            
+            //TODO
             case 'weekly_matchup_request':
                 $this->processor_get_weekly_matchup($request);
                 break;
-
+            //TODO
             case 'all_matchups_request':
                 $this->processor_get_all_matchups($request);
                 break;
-
+            //TODO
             case 'team_data_request':
                 $this->processor_get_team_data($request);
                 break;
-        
+            //TODO
             case 'league_standings_request':
                 $this->processor_get_league_standings($request);
                 break;
@@ -1592,8 +1592,8 @@ class MessageProcessor
             $db->rollback();
             error_log("An error occurred: " . $e->getMessage());
             $this->response = ['result' => 'false', 'error' => 'An error occurred: ' . $e->getMessage()];
-            error_log("Response being sent: " . json_encode($response));
-            return $response;
+            error_log("Response being sent: " . json_encode($this->response));
+            return $this->response;
         }finally {
             // Close the connection only in the finally block
             $db->close();

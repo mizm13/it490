@@ -102,7 +102,7 @@ class Scoring {
             FROM player_stats ps
             INNER JOIN games g ON ps.game_id = g.game_id
             INNER JOIN fantasy_weeks fw ON (g.game_date BETWEEN fw.start_date AND fw.end_date)
-            WHERE ps.player_id = ? AND fw.league_id = ? AND fw.week_number = ?
+            WHERE ps.player_id = ? AND fw.league_id = ? AND g.game_date BETWEEN fw.start_date AND fw.end_date AND fw.week_number = ?
             GROUP BY ps.player_id
         ");
             $statsQuery->bind_param("iii", $player_id, $leagueId, $weekNumber);
@@ -475,5 +475,135 @@ class Scoring {
         $db->close();
 
         echo "Fantasy weeks populated successfully for league $leagueId.\n";
+    }
+
+    /** Method to calculate scores of all players for that week
+     * @param int $leagueId
+     * @param int #weekNumber
+     */
+    public function calculatePlayerScoresForWeek($leagueId, $weekNumber) {
+        $db = connectDB();
+        if ($db === null) {
+            die("Cannot connect to database.\n");
+        }
+
+        $query = $db->prepare("
+            SELECT ps.player_id,
+                   SUM(ps.points) AS total_points,
+                   SUM(ps.rebounds) AS total_rebounds,
+                   SUM(ps.assists) AS total_assists,
+                   SUM(ps.blocks)  AS total_blocks,
+                   SUM(ps.steals)  AS total_steals
+            FROM player_stats ps
+            INNER JOIN games g ON ps.game_id = g.game_id
+            INNER JOIN fantasy_weeks fw ON g.game_date BETWEEN fw.start_date AND fw.end_date
+            WHERE fw.league_id = ? AND fw.week_number = ?
+            GROUP BY ps.player_id");
+
+        $query->bind_param("ii", $leagueId, $weekNumber);
+        $query->execute();
+        $result = $query->get_result();
+        $playerScores = [];
+        while ($row = $result->fetch_assoc()) {
+            $playerScores[] = [
+                'player_id'      => $row['player_id'],
+                'week_number'    => $weekNumber,
+                'fantasy_points' => $this->calculatePlayerScore($row)
+            ];
+        }
+        $query->close();
+        $db->close();
+        return $playerScores;
+    }
+
+    /** Method to update the weekly scores of each player.
+     * @param mixed $playerScores array of players scores calculated by previous method.
+     * @param int $leagueId
+     */
+    public function storePlayerWeeklyScores($playerScores, $leagueId) {
+        $db = connectDB();
+        if ($db === null) {
+            die("Cannot connect to database.\n");
+        }
+
+        foreach ($playerScores as $ps) {
+            $playerId = $ps['player_id'];
+            $weekNumber = $ps['week_number'];
+            $fantasyPoints = $ps['fantasy_points'];
+    
+            /*Find the fantasy team that this player belongs to*/
+            $teamQuery = $db->prepare("SELECT team_id FROM fantasy_team_players WHERE player_id = ? AND league_id = ?");
+            $teamQuery->bind_param("ii", $playerId, $leagueId);
+            $teamQuery->execute();
+            $tResult = $teamQuery->get_result();
+            while ($tRow = $tResult->fetch_assoc()) {
+                $teamId = $tRow['team_id'];
+                /*Insert or update weekly_fantasy_scores*/
+                $insert = $db->prepare("
+                    INSERT INTO weekly_fantasy_scores (player_id, team_id, week_number, total_points)
+                    VALUES (?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE total_points = ?
+                ");
+                $insert->bind_param("iiiii", $playerId, $teamId, $weekNumber, $fantasyPoints, $fantasyPoints);
+                $insert->execute();
+                $insert->close();
+            }
+            $teamQuery->close();
+        }
+        $db->close();
+    }
+    
+    /** Method to update the weekly scores of matchups. 
+     * @param int $leagueId
+     * @param int $weekNumber
+     * @return void
+    */
+    public function updateWeeklyScoresOfMatchups($leagueId, $weekNumber) {
+        $db = connectDB();
+        if ($db === null) {
+            die("Cannot connect to database.\n");
+        }
+
+        // Sum team points for this week from weekly_fantasy_scores
+        $teamScoreQuery = $db->prepare("
+        SELECT team_id, SUM(total_points) as team_total
+        FROM weekly_fantasy_scores
+        WHERE week_number = ? 
+        GROUP BY team_id");
+
+        $teamScoreQuery->bind_param("i", $weekNumber);
+        $teamScoreQuery->execute();
+        $tResult = $teamScoreQuery->get_result();
+
+        $scoresByTeam = [];
+        while ($row = $tResult->fetch_assoc()) {
+            $scoresByTeam[$row['team_id']] = $row['team_total'];
+        }
+        $teamScoreQuery->close();
+
+        // Now update the matchups
+        foreach ($scoresByTeam as $tId => $tScore) {
+            $selectMatchup = $db->prepare("
+                SELECT matchup_id, team1_id, team2_id FROM matchups
+                WHERE league_id = ? AND week = ? AND (team1_id = ? OR team2_id = ?)
+            ");
+            $selectMatchup->bind_param("iiii", $leagueId, $weekNumber, $tId, $tId);
+            $selectMatchup->execute();
+            $mResult = $selectMatchup->get_result();
+            if ($matchup = $mResult->fetch_assoc()) {
+                $matchupId = $matchup['matchup_id'];
+                $isTeam1 = ($matchup['team1_id'] == $tId);
+                if ($isTeam1) {
+                    $updateScore = $db->prepare("UPDATE matchups SET team1_score = ? WHERE matchup_id = ?");
+                } else {
+                    $updateScore = $db->prepare("UPDATE matchups SET team2_score = ? WHERE matchup_id = ?");
+                }
+                $updateScore->bind_param("ii", $tScore, $matchupId);
+                $updateScore->execute();
+                $updateScore->close();
+            }
+            $selectMatchup->close();
+        }
+        $db->close();
     }
 }

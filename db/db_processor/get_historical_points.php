@@ -49,7 +49,7 @@ if (empty($playerStatsByWeek)) {
 
 // $playerStatsByWeek is something like:
 // [
-//   [ 'player_id' => X, 'total_points' => ..., 'total_rebounds' => ..., 'total_assists' => ..., 'total_blocks' => ..., 'total_steals' => ..., 'week_number' => Y ],
+//   [ 'player_id' => X, 'total_points' => ..., 'total_rebounds' => ..., 'total_assists' => ..., 'total_blocks' => ..., 'total_steals' => ..., 'week_number' => ... ],
 //   ...
 // ]
 
