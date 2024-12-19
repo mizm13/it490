@@ -1,5 +1,6 @@
 <?php
 require_once('/home/macho/it490/db/connectDB.php');
+require_once('/home/macho/it490/db/db_processor/Scoring.php');
 
 class APIMessageProcessor
 {
@@ -61,6 +62,28 @@ class APIMessageProcessor
             case 'api_player_stats_request':
                 echo("API Player Stats request received\n");
                 $this->processAPIPlayerStatsRequest($request);
+
+                /*adding scoring logic for after stats are inserted*/
+                
+                $scoring = new Scoring();
+                $leagueIds = $scoring->getLeaguesWithCompletedDrafts();
+
+                /*iterate through all current leagues that have drafted*/
+                foreach($leagueIds as $leagueId) {
+                    $weekNumber = $this->getCurrentFantasyWeek($leagueId);
+
+                    if($weekNumber){
+                        echo "Running scoring updates for league $leagueId for week $weekNumber. \n";
+
+                        $playerScores = $scoring->calculatePlayerScoresForWeek($leagueId, $weekNumber);
+                        $scoring->storePlayerWeeklyScores($playerScores, $leagueId);
+                        $scoring->updateWeeklyMatchupScores($leagueId, $weekNumber);
+                        $scoring->updateStandings();
+                    } else {
+                        echo "No current week found, skipping scoring updates.\n";
+                    }
+                }
+
                 break;
 
             case 'api_team_data_request':
@@ -356,6 +379,36 @@ public function getResponse()
         return $this->response;
     }
 
+    /**
+     * Method that determines the current week in the fantasy league
+     * @param int $leagueId
+     * @return int $weekNumber or NULL
+     */
+    private function getCurrentFantasyWeek($leagueId){
+        $db = connectDB();
+        if ($db === null) {
+            echo "Failed to connect to database to fetch current week.\n";
+            return null;
+        }
+
+        $today = date('Y-m-d');
+        $query = $db->prepare("SELECT week_number 
+                            from fantasy_weeks where league_id = ? 
+                            AND ? BETWEEN start_date AND end_date LIMIT 1");
+        $query->bind_param("is", $leagueId, $today);
+        $query->execute();
+        $query->bind_result($weekNumber);
+        $found = $query->fetch();
+        $query->close();
+        $db->close();
+
+        if($found) {
+            return $weekNumber;
+        } else {
+            return null;
+        }
+
+    }
 
 
 }

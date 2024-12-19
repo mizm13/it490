@@ -6,96 +6,59 @@ require_once(__DIR__.'/../connectDB.php');
 
 $scoring = new Scoring();
 
-/*STEP 1: Get all historical weeks from your games table
-We assume that our `games` table has a column `game_date`
-and we want all weeks that we have data for so far.*/
+/*Step 1: Get all the league ids and connect to DB*/
+
+$leagueIds = $scoring->getLeaguesWithCompletedDrafts();
+
 echo "Fetching all historical weeks...\n";
 
 $db = connectDB();
 if ($db === null) {
     die("Cannot connect to database.\n");
 }
-$weeksQuery = "SELECT week_number FROM fantasy_weeks WHERE league_id = 2 ORDER BY week_number ASC";
-$weeksResult = $db->query($weeksQuery);
 
-$weeks = [];
-while ($row = $weeksResult->fetch_assoc()) {
-    $weeks[] = $row['week_number'];
+/* Step 2: For each league that has completed its draft,
+ populate historical scores with a loop*/
+foreach ($leagueIds as $leagueId) {
+    echo "Processing historical scores for league: $leagueId\n";
+
+    /* Get all weeks from fantasy_weeks for this league*/
+    $weeksQuery = $db->prepare("SELECT week_number FROM fantasy_weeks WHERE league_id = ? ORDER BY week_number ASC");
+    $weeksQuery->bind_param("i", $leagueId);
+    $weeksQuery->execute();
+    $wResult = $weeksQuery->get_result();
+
+    $weekNumbers = [];
+    while ($row = $wResult->fetch_assoc()) {
+        $weekNumbers[] = $row['week_number'];
+    }
+    $weeksQuery->close();
+
+    /* For each week, run the scoring*/
+    foreach ($weekNumbers as $weekNumber) {
+        echo "Calculating scores for league $leagueId, week $weekNumber...\n";
+
+        /*Calculate all player scores for the given week*/
+        $playerScores = $scoring->calculatePlayerScoresForWeek($leagueId, $weekNumber);
+
+        /*If no player scores found, that may mean no games that week, so we skip*/
+        if (empty($playerScores)) {
+            echo "No player data found for league $leagueId, week $weekNumber. Skipping.\n";
+            continue;
+        }
+
+        /* Store player weekly scores*/
+        $scoring->storePlayerWeeklyScores($playerScores, $leagueId);
+
+        /*Update matchups from these weekly scores*/
+        $scoring->updateWeeklyMatchupScores($leagueId, $weekNumber);
+
+        /*Update standings after all matchups for this week have been scored*/
+        $scoring->updateStandings();
+
+        echo "Finished processing league $leagueId, week $weekNumber.\n";
+    }
 }
-$weeksResult->close();
-
-
-/* STEP 2: Fetch all teams */
-echo "Fetching all teams...\n";
-$teamsQuery = "SELECT team_id FROM fantasy_teams";
-$teamsResult = $db->query($teamsQuery);
-
-$teams = [];
-while ($row = $teamsResult->fetch_assoc()) {
-    $teams[] = $row['team_id'];
-}
-$teamsResult->close();
 
 $db->close();
-
-/* STEP 3: Get player stats by week from the method in the Scoring class
-This will return an array of stats aggregated by player_id and week.*/
-echo "Retrieving player stats by week...\n";
-$playerStatsByWeek = $scoring->getPlayerStatsByWeek(2);
-if (empty($playerStatsByWeek)) {
-    echo "No player stats found.\n";
-    exit;
-}
-
-// $playerStatsByWeek is something like:
-// [
-//   [ 'player_id' => X, 'total_points' => ..., 'total_rebounds' => ..., 'total_assists' => ..., 'total_blocks' => ..., 'total_steals' => ..., 'week_number' => ... ],
-//   ...
-// ]
-
-/*STEP 4: Calculate fantasy points for each player/week combination
-Note: We’re adapting the code since `calculatePlayerScore()` is set up slightly differently in the class.*/
-$fantasyPoints = [];
-
-foreach ($playerStatsByWeek as $stat) {
-    $playerId   = $stat['player_id'];
-    $weekNumber = $stat['week_number'];
-    // $points     = $stat['total_points'];
-    // $rebounds   = $stat['total_rebounds'];
-    // $assists    = $stat['total_assists'];
-    // $blocks     = $stat['total_blocks'];
-    // $steals     = $stat['total_steals'];
-    
-    $totalFantasyPoints = $scoring->calculatePlayerScore($stat);
-
-    $fantasyPoints[] = [
-        'player_id'      => $playerId,
-        'week_number'    => $weekNumber,
-        'fantasy_points' => $totalFantasyPoints
-    ];
-}
-
-/*At this point, we have calculated all fantasy points for each player, by week.
- Next, we will aggregate them into team scores per week.*/
-
-/*STEP 5: Aggregate team scores per week*/
-echo "Aggregating team scores per week...\n";
-$teamScores = $scoring->getTeamScorePerWeek($fantasyPoints);
-
-// $teamScores should now be an associative array keyed by leagueId_teamId_weekNumber with something like:
-// $teamScores['leagueid_teamid_week'] = [
-//     'league_id' => ...,
-//     'team_id' => ...,
-//     'week_number' => ...,
-//     'total_points' => ...
-// ];
-
-/* STEP 6: Update the matchups with the calculated team scores*/
-echo "Updating matchups with calculated team scores...\n";
-$scoring->updateMatchups($teamScores);
-
-/*STEP 7: Update the standings based on the updated matchups*/
-echo "Updating standings...\n";
-$scoring->updateStandings();
-
-echo "Historical scoring calculation and update complete.\n";
+echo "Historical scoring population complete.\n";
