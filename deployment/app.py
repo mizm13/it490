@@ -21,6 +21,12 @@ PROD_DIR = "/var/deploy"
 # Server IP addresses
 QA_IP = {"frontend": "10.8.0.6", "backend": "10.8.0.5", "dmz": "10.8.0.9"}
 PROD_IP = {"frontend00": "10.8.0.6", "frontend01": "10.8.0.4", "backend00": "10.8.0.5", "backend01": "10.8.0.7", "dmz00": "10.8.0.9", "dmz01": "10.8.0.9"}
+# Allowed file extensions
+ALLOWED_EXTENSIONS = {'tar', 'gz', 'bz2', 'xz'}
+AUTH_CODES = {
+    'qa': {'11111', '00000'},
+    'prod': {'12345', '67890'}
+}
 
 # Deployment menu where the user can select what they want to do
 @app.route('/')
@@ -55,8 +61,16 @@ app.config['MYSQL_DB'] = os.getenv('MYSQL_DB')
 
 mysql = MySQL(app)
 
-# Allowed file extensions
-ALLOWED_EXTENSIONS = {'tar', 'gz', 'bz2', 'xz'}
+def authentication(accessCode, env):
+    # Get the appropriate AUTH set based on the environment
+    auth_set = AUTH_CODES.get(env)
+    
+    if auth_set is None:
+        raise ValueError(f"Invalid environment: {env}")
+    
+    # Check if the accessCode is in the AUTH set
+    return accessCode in auth_set
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 def get_db_connection():
@@ -382,8 +396,10 @@ def deploy_to_qa(serverType, cursor):
 # Route to deploy latest package with status "Pass" to production server
 @app.route('/deploy/prod/<serverType>', methods=['POST'])
 def deploy_to_prod(serverType):
-    
-    table = request.form.get('table')
+    access_input = request.args.get('access')
+    if not authentication(access_input, 'prod'):
+        return jsonify({"success": False, "error": "Access denied! Wrong access code."}), 500
+    table = request.args.get('table_name')
     connection = get_db_connection()
     if not connection:
         return jsonify({"success": False, "error": "Database connection failed"}), 500
@@ -425,6 +441,16 @@ def deploy_to_prod(serverType):
 # Route to rollback to one of the 5 latest packages with status "Pass" in the database
 @app.route('/rollback/<serverType>', methods=['POST'])
 def rollback(serverType):
+    if serverType in QA_IP:
+        environment = 'qa'
+    elif serverType in PROD_IP:
+        environment = 'prod'
+    else:
+        environment = None
+
+    access_input = request.args.get('access')
+    if not authentication(access_input, environment):
+        return jsonify({"success": False, "error": "Access denied! Wrong access code."}), 500
     id = request.form.get('id')
     connection = get_db_connection()
     
@@ -446,14 +472,16 @@ def rollback(serverType):
             return jsonify({"success": False, "error": f"Package with ID {id} not found in the database"}), 404
         
         local_file = f"/var/deploy/uploads/{qa_server}_{package[1]}_{package[2]}.tar.gz"
-        base_directory = f"/var/deploy/{qa_server}_{package[1]}"
+        base_directory = f"/var/deploy/{package[1]}"
         if not os.path.exists(local_file):
             return jsonify({"success": False, "error": f"Package file not found: {local_file}"}), 404
         
         try:
             #  Rollback to the package version for both QA and production
-            deploy_with_scp(local_file, QA_IP[qa_server], QA_DIR, base_directory, package[2], "root", "install.sh")
-            deploy_with_scp(local_file, PROD_IP[prod_server], PROD_DIR, base_directory, package[2], "root", "install.sh")
+            if environment == 'qa':
+                deploy_rollback(local_file, QA_IP[qa_server], QA_DIR, base_directory, package[2], "root", "install.sh")
+            else:
+                deploy_rollback(local_file, PROD_IP[prod_server], PROD_DIR, base_directory, package[2], "root", "install.sh")
             return jsonify({
                 "success": True,
                 "message": f"Rollback to package {package[1]} version {package[2]} completed successfully."
@@ -527,6 +555,30 @@ def deploy_with_scp(local_file, remote_host, remote_dir):
     print(f"File transferred successfully to {remote_host}:{remote_dir}")
     return jsonify({"success": True, "message": f"Deployment to {remote_host} completed successfully."}), 200
 
+def deploy_rollback(local_file, remote_host, remote_dir, base_directory, version, username, install_script):
+    print(f"Transferring {local_file} to {remote_host}:{remote_dir}...")
+    subprocess.run(
+        ["scp", local_file, f"{username}@{remote_host}:{remote_dir}"],
+        check=True
+    )
+    print(f"File transferred successfully to {remote_host}:{remote_dir}")
+
+    remote_file_path = posixpath.join(remote_dir, os.path.basename(local_file))
+
+    commands = [
+        f"tar -xvf {remote_file_path} -C {remote_dir}",
+        f"cd {base_directory} && bash {install_script}"
+    ]
+
+    for cmd in commands:
+        print(f"Executing remote command: {cmd}")
+        subprocess.run(
+            ["ssh", f"{username}@{remote_host}", cmd],
+            check=True
+        )
+    return jsonify({"success": True, "message": f"Deployment to {remote_host} completed successfully."}), 200
+
+
 def remote_extract_install(server, remote_dir):
     try:
         # Establish SSH connection
@@ -579,6 +631,17 @@ def remote_extract_install(server, remote_dir):
 def deploy(server_name):
     # Determine the server IP and directory
     server_ip = QA_IP.get(server_name) or PROD_IP.get(server_name)
+    if server_name in QA_IP:
+        environment = 'qa'
+    elif server_name in PROD_IP:
+        environment = 'prod'
+    else:
+        environment = None
+
+    access_input = request.form.get('access')
+    if not authentication(access_input, environment):
+        return jsonify({"success": False, "error": "Access denied! Wrong access code."}), 500
+
     remote_dir = "/var/deploy"
 
     if not server_ip:
@@ -595,6 +658,9 @@ def deploy(server_name):
 # Route to upload to QA server in the /var/deploy directory
 @app.route('/deploy/qa/<serverType>', methods=['POST'])
 def deploy_qa(serverType):
+    access_input = request.form.get('access')
+    if not authentication(access_input, 'qa'):
+        return jsonify({"success": False, "error": "Access denied! Wrong access code."}), 500
     connection = get_db_connection()
     if not connection:
         return jsonify({"success": False, "error": "Database connection failed"}), 500

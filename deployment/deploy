@@ -117,10 +117,11 @@ upload_package() {
 deploy_to_qa() {
     # Ask for the server name
     read -p "Enter the QA server name: " SERVER_NAME
+    read -p "Enter Access Code: " ACCESS_CODE
 
     DEPLOY_URL="$FLASK_URL/deploy/qa/$SERVER_NAME"
     echo "Deploying to QA server: $SERVER_NAME..."
-    RESPONSE=$(/usr/bin/curl -X POST "$DEPLOY_URL")
+    RESPONSE=$(/usr/bin/curl -X POST -H "Content-Type: application/x-www-form-urlencoded" -d "access=$ACCESS_CODE" "$DEPLOY_URL")
 
     if [ $? -ne 0 ]; then
         echo "Error: Deployment request failed."
@@ -135,6 +136,7 @@ deploy_to_prod() {
     # Prompt the user for the required inputs
     read -p "Enter the production server name (e.g., frontend00, frontend01, backend00, dmz00): " server_type
     read -p "Enter the server type (e.g., frontend, backend, dmz): " table_name
+    read -p "Enter Access Code: " ACCESS_CODE
 
     # Validate inputs
     if [[ -z "$server_type" || -z "$table_name" ]]; then
@@ -142,11 +144,10 @@ deploy_to_prod() {
         return 1
     fi
 
-    DEPLOY_URL="$FLASK_URL/deploy/prod/$server_type"
-    data="table=$table_name"
+    DEPLOY_URL="$FLASK_URL/deploy/prod/$server_type?table_name=$table_name&access=$ACCESS_CODE"
 
     echo "Deploying to production server type: $server_type..."
-    response=$(curl -s -X POST -H "Content-Type: application/x-www-form-urlencoded" -d "$data" "$DEPLOY_URL")
+    response=$(/usr/bin/curl -X POST "$DEPLOY_URL")
 
     # Check the response
     if [[ $? -ne 0 ]]; then
@@ -158,15 +159,48 @@ deploy_to_prod() {
     echo "$response" | jq
 }
 
+rollback_package() {
+    # Prompt the user for the required inputs
+    read -p "Enter the server name (e.g., frontend, frontend00, backend01, etc.): " server_type
+    read -p "Enter the package ID to rollback: " package_id
+    read -p "Enter Access Code: " ACCESS_CODE
+
+    # Validate inputs
+    if [[ -z "$server_type" || -z "$package_id" ]]; then
+        echo "Error: Both server type and package ID are required."
+        return 1
+    fi
+
+    # Construct the URL and payload
+    ROLLBACK_URL="$FLASK_URL/rollback/$server_type?access=$ACCESS_CODE"
+    data="id=$package_id"
+
+    # Send POST request to the Flask API
+    echo "Initiating rollback for server type: $server_type with package ID: $package_id..."
+    response=$(/usr/bin/curl -X POST -H "Content-Type: application/x-www-form-urlencoded" -d "$data" "$ROLLBACK_URL")
+
+    # Check if the request succeeded
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Rollback request failed."
+        return 1
+    fi
+
+    # Display the server's response
+    echo "Server Response:"
+    echo "$response" | jq
+}
+
+
 
 # Function to install the package
 install_package() {
     # Ask for server name
     read -p "Enter the server name to install the package: " SERVER_NAME
+    read -p "Enter Access Code: " ACCESS_CODE
 
     INSTALL_URL="$FLASK_URL/install/$SERVER_NAME"
     echo "Installing package with ID: $PACKAGE_ID..."
-    RESPONSE=$(/usr/bin/curl -X POST "$INSTALL_URL")
+    RESPONSE=$(/usr/bin/curl -X POST -d "access=$ACCESS_CODE" "$INSTALL_URL")
 
     if [ $? -ne 0 ]; then
         echo "Error: Installation request failed."
@@ -211,8 +245,7 @@ select_option() {
     elif [[ "$url" == "/deploy/prod" ]]; then
         deploy_to_prod
     elif [[ "$url" == "/rollback" ]]; then
-        echo "Rollback is not yet implemented."
-        echo "Oh well...."
+        rollback_package
     else
         echo "Unsupported option."
     fi
