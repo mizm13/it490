@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request
 from flask_mysqldb import MySQL
 from dotenv import load_dotenv
+import paramiko
 import os
 import logging
 import time
@@ -19,7 +20,22 @@ PROD_DIR = "/var/deploy"
 
 # Server IP addresses
 QA_IP = {"frontend": "10.8.0.6", "backend": "10.8.0.5", "dmz": "10.8.0.9"}
-PROD_IP = {"frontend00": "10.8.0.6", "frontend01": "10.8.0.4", "backend00": "10.8.0.5", "backend01": "10.8.0.7", "dmz00": "10.8.0.9"}
+PROD_IP = {"frontend00": "10.8.0.6", "frontend01": "10.8.0.4", "backend00": "10.8.0.5", "backend01": "10.8.0.7", "dmz00": "10.8.0.9", "dmz01": "10.8.0.9"}
+
+# Deployment menu where the user can select what they want to do
+@app.route('/')
+def index():
+    return jsonify({
+        "message": "Deployments console",
+        "options": [
+            {"option": "Upload a package", "url": "/upload", "method": "POST"},
+            {"option": "Deploy to QA", "url": "/deploy/qa", "method": "POST"},
+            {"option": "Deploy to production", "url": "/deploy/prod", "method": "POST"},
+            {"option": "Update package status", "url": "/update_qa", "method": "POST"},
+            {"option": "Install on server", "url": "/install", "method": "POST"},
+            {"option": "Rollback to previous version", "url": "/rollback", "method": "POST"}
+        ]
+    })
 
 # Logging configuration. Remember to uncomment when in production
 # logging.basicConfig(
@@ -280,9 +296,18 @@ def upload_package():
             logging.error(f"Database update failed: {e}")
             return jsonify({"success": False, "error": f"File uploaded but failed to update database: {str(e)}"}), 500
         
-        # Deploy to QA and return the result
-        deploy_result = deploy_to_qa(packageType, packageVersion, cursor)
-        return deploy_result
+        return jsonify({
+            "success": True,
+            "message": "File uploaded successfully",
+            "data": {
+                "id": id,
+                "name": packageName,
+                "version": packageVersion,
+                "type": packageType,
+                "description": packageDesc,
+                "filename": filename
+            }
+        })
     
     except Exception as e:
         logging.error(f"Error saving file: {e}")
@@ -305,10 +330,12 @@ def check_package_exists(bundle_name, table_name, cursor=None):
     return None
 
 # Query database if package with new status exists and then deploy to QA (frontend, backend, dmz) machine
-def deploy_to_qa(serverType, version, cursor):
-    connection = get_db_connection()
-    if not connection:
-        return jsonify({"success": False, "error": "Database connection failed"}), 500
+def deploy_to_qa(serverType, cursor):
+    if not cursor:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({"success": False, "error": "Database connection failed"}), 500
+        cursor = connection.cursor()
     table_name = {
         "frontend": "frontend_bundles",
         "backend": "backend_bundles",
@@ -331,11 +358,11 @@ def deploy_to_qa(serverType, version, cursor):
                 return jsonify({"success": False, "error": f"Package file not found: {local_file}"}), 404
 
             try:
-                deploy_with_scp(local_file, server_ip, QA_DIR, base_directory, version, "root", "install.sh")
+                deploy_with_scp(local_file, server_ip, QA_DIR)
                 update_server_history(server_ip, new_package[1], new_package[2])
                 return jsonify({
                     "success": True,
-                    "message": f"Deployment of new package {new_package[1]} version {new_package[2]} completed successfully."
+                    "message": f"Deployment of new package {new_package[1]} version {new_package[2]} to QA server completed successfully."
                 })
             except Exception as e:
                 logging.error(f"Deployment failed: {e}")
@@ -375,11 +402,11 @@ def deploy_to_prod(serverType):
                 return jsonify({"success": False, "error": f"Package file not found: {local_file}"}), 404
 
             try:
-                deploy_with_scp(local_file, server_ip, PROD_DIR, base_directory, latest_package[2], "root", "install.sh")
+                deploy_with_scp(local_file, server_ip, PROD_DIR)
                 update_server_history(server_ip, latest_package[1], latest_package[2])
                 return jsonify({
                     "success": True,
-                    "message": f"Deployment of latest package {latest_package[1]} version {latest_package[2]} completed successfully."
+                    "message": f"Deployment of latest package {latest_package[1]} version {latest_package[2]} to production server completed successfully."
                 })
             except Exception as e:
                 logging.error(f"Deployment failed: {e}")
@@ -401,6 +428,9 @@ def rollback(serverType):
     id = request.form.get('id')
     connection = get_db_connection()
     
+    #  Remove trailing 2 digits from serverType to get the actual server name
+    qa_server = serverType[:-2]
+    prod_server = serverType
     # If no ID is provided, return error
     if not id:
         return jsonify({"success": False, "error": "ID is required for rollback"}), 400
@@ -409,21 +439,21 @@ def rollback(serverType):
     cursor = connection.cursor()
     
     try:
-        cursor.execute(f"SELECT * FROM {serverType}_bundles WHERE id = {id}")
+        cursor.execute(f"SELECT * FROM {qa_server}_bundles WHERE id = {id}")
         package = cursor.fetchone()
         
         if not package:
             return jsonify({"success": False, "error": f"Package with ID {id} not found in the database"}), 404
         
-        local_file = f"/var/deploy/uploads/{serverType}_{package[1]}_{package[2]}.tar.gz"
-        base_directory = f"/var/deploy/{serverType}_{package[1]}"
+        local_file = f"/var/deploy/uploads/{qa_server}_{package[1]}_{package[2]}.tar.gz"
+        base_directory = f"/var/deploy/{qa_server}_{package[1]}"
         if not os.path.exists(local_file):
             return jsonify({"success": False, "error": f"Package file not found: {local_file}"}), 404
         
         try:
-            deploy_to_qa(serverType, package[2], cursor)
-            deploy_with_scp(local_file, PROD_IP[serverType], PROD_DIR, base_directory, package[2], "root", "install.sh")
-            update_server_history(QA_IP[serverType], package[1], package[2])
+            #  Rollback to the package version for both QA and production
+            deploy_with_scp(local_file, QA_IP[qa_server], QA_DIR, base_directory, package[2], "root", "install.sh")
+            deploy_with_scp(local_file, PROD_IP[prod_server], PROD_DIR, base_directory, package[2], "root", "install.sh")
             return jsonify({
                 "success": True,
                 "message": f"Rollback to package {package[1]} version {package[2]} completed successfully."
@@ -488,28 +518,94 @@ def rollback_to_latest_pass(serverType, cursor=None):
     finally:
         cursor.close()
 
-def deploy_with_scp(local_file, remote_host, remote_dir, base_directory, version, username, install_script):
+def deploy_with_scp(local_file, remote_host, remote_dir):
     print(f"Transferring {local_file} to {remote_host}:{remote_dir}...")
     subprocess.run(
-        ["scp", local_file, f"{username}@{remote_host}:{remote_dir}"],
+        ["scp", local_file, f"root@{remote_host}:{remote_dir}"],
         check=True
     )
     print(f"File transferred successfully to {remote_host}:{remote_dir}")
-
-    remote_file_path = posixpath.join(remote_dir, os.path.basename(local_file))
-
-    commands = [
-        f"tar -xvf {remote_file_path} -C {remote_dir}",
-        f"cd {base_directory} && bash {install_script}"
-    ]
-
-    for cmd in commands:
-        print(f"Executing remote command: {cmd}")
-        subprocess.run(
-            ["ssh", f"{username}@{remote_host}", cmd],
-            check=True
-        )
     return jsonify({"success": True, "message": f"Deployment to {remote_host} completed successfully."}), 200
+
+def remote_extract_install(server, remote_dir):
+    try:
+        # Establish SSH connection
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(server)
+
+        command = f"cd {remote_dir} && ls -t *.tar.gz | head -n 1"
+        stdin, stdout, stderr = ssh.exec_command(command)
+        if stdout.channel.recv_exit_status() != 0:
+            print(f"Error: {stderr.read().decode().strip()}")
+            return
+        latest_tarball = stdout.read().decode().strip()
+
+        if not latest_tarball:
+            print("No tarball files found in the specified directory.")
+            return
+
+        print(f"Latest tarball: {latest_tarball}")
+
+        # Extract the tarball
+        command = f"tar -xvf /var/deploy/{latest_tarball} -C /var/deploy"
+        stdin, stdout, stderr = ssh.exec_command(command)
+        print(stdout.read().decode())
+        print(stderr.read().decode())
+        # Get the top-level directory from the tarball
+        command = f"tar -tf /var/deploy/{latest_tarball} | head -n 1 | cut -f1 -d'/'"
+        stdin, stdout, stderr = ssh.exec_command(command)
+        extracted_dir = stdout.read().decode().strip()
+
+        if not extracted_dir:
+            print("Directory not found or is missing.")
+            return
+
+        extracted_dir = "/var/deploy/" + extracted_dir
+
+        # Navigate into the extracted directory and execute install.sh
+        command = f"cd {extracted_dir} && [ -x install.sh ] && ./install.sh || echo 'install.sh not found'"
+        stdin, stdout, stderr = ssh.exec_command(command)
+        print(stdout.read().decode())
+        print(stderr.read().decode())
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+    finally:
+        ssh.close()
+
+@app.route('/install/<server_name>', methods=['POST'])
+def deploy(server_name):
+    # Determine the server IP and directory
+    server_ip = QA_IP.get(server_name) or PROD_IP.get(server_name)
+    remote_dir = "/var/deploy"
+
+    if not server_ip:
+        return jsonify({"error": "Invalid server name"}), 400
+
+    try:
+        # Perform remote extract and install
+        remote_extract_install(server_ip, remote_dir)
+        return jsonify({"message": f"Installation of latest package to {server_name} ({server_ip}) completed successfully."})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+# Route to upload to QA server in the /var/deploy directory
+@app.route('/deploy/qa/<serverType>', methods=['POST'])
+def deploy_qa(serverType):
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({"success": False, "error": "Database connection failed"}), 500
+    cursor = connection.cursor()
+    try:
+        return deploy_to_qa(serverType, cursor)
+    except Exception as e:
+        logging.error(f"Error during deployment to QA: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        cursor.close()
 
 # Main entry point
 if __name__ == '__main__':
