@@ -30,6 +30,9 @@
         </form>
 
         <?php
+        // Include the Simple HTML DOM parser
+        require_once 'simple_html_dom.php';
+
         // Check if player is set
         if (isset($_GET['player'])) {
             $player_name = trim($_GET['player']);
@@ -37,11 +40,40 @@
             // Validate and format player name
             if (!empty($player_name)) {
                 $formatted_name = urlencode($player_name); // Encode spaces and special characters
-                $base_url = "https://store.nba.com/";
-                $final_url = $base_url . "?query=" . $formatted_name;
+                $url = "https://store.nba.com/?query=" . $formatted_name;
 
                 // Display the link
-                echo "<div class='mt-6'><a href=\"$final_url\" target=\"_blank\" class=\"text-blue-600 hover:underline\">Shop for $player_name Merchandise</a></div>";
+                echo "<div class='mt-6'><a href=\"$url\" target=\"_blank\" class=\"text-blue-600 hover:underline'>Shop for $player_name Merchandise</a></div>";
+
+                // Use Simple HTML DOM to load the page content
+                $html = file_get_html($url);
+
+                if ($html) {
+                    // Find and display product images and links (modify selectors as needed)
+                    echo "<h2 class='mt-6 text-xl font-bold'>Preview of Available Merchandise</h2>";
+
+                    // Look for product items — change 'img' and 'a' selectors as needed to match NBA Store's page structure
+                    foreach ($html->find('div[class=product-card]') as $product) {
+                        // Find the image of the product
+                        $image = $product->find('img', 0);
+                        $link = $product->find('a', 0);
+
+                        if ($image && $link) {
+                            $img_src = $image->src;
+                            $product_url = $link->href;
+
+                            echo "
+                                <div class='mt-4'>
+                                    <a href='$product_url' target='_blank'>
+                                        <img src='$img_src' alt='Product Image' class='w-full h-auto rounded-lg'>
+                                    </a>
+                                </div>
+                            ";
+                        }
+                    }
+                } else {
+                    echo "<div class='mt-6 text-red-500'>Failed to load merchandise from the NBA Store.</div>";
+                }
             } else {
                 echo "<div class='mt-6 text-red-500'>Please enter a valid player name.</div>";
             }
