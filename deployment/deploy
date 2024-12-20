@@ -161,7 +161,7 @@ deploy_to_prod() {
 
 rollback_package() {
     # Prompt the user for the required inputs
-    read -p "Enter the server type (e.g., frontend, backend, dmz): " server_type
+    read -p "Enter the server name (e.g., frontend, frontend00, backend01, etc.): " server_type
     read -p "Enter the package ID to rollback: " package_id
     read -p "Enter Access Code: " ACCESS_CODE
 
