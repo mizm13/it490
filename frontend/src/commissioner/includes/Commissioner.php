@@ -61,10 +61,10 @@ abstract class Commissioner {
                     <?php foreach ($playerData as $row): ?>
                         <tr class="w-full text-sm bg-white border-b dark:bg-gray-800 dark:border-gray-700">
                             <td class="px-2 py-2 text-left">
-                                <input type="checkbox" name="selected_players[]" value="<?php echo $row['player'] . '|' . $row['team']; ?>">
+                                <input type="checkbox" name="selected_players[]" value="<?php echo $row['player_name'] . '|' . $row['team_name']; ?>">
                             </td>
-                            <td class="px-2 py-2 text-left"><?php echo htmlspecialchars($row['player']);?></td>
-                            <td class="px-2 py-2 text-left"><?php echo htmlspecialchars($row['team']);?></td>
+                            <td class="px-2 py-2 text-left"><?php echo htmlspecialchars($row['player_name']);?></td>
+                            <td class="px-2 py-2 text-left"><?php echo htmlspecialchars($row['team_name']);?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>

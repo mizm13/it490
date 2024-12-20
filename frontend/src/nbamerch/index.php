@@ -2,7 +2,7 @@
 /**
  * Loads Matchups page
  */
- namespace nba\src\matchups;
+ namespace nba\src\nbamerch;
  require (__DIR__.'/../../vendor/autoload.php');
- includes\Matchups::displayMatchups();
+ includes\PlayerMerchSearch::displayMerchSearch();
 ?>

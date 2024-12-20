@@ -55,7 +55,7 @@ class MessageProcessor
             
             case 'commissioner_mgmt':
             $this->processorCommissionerMgmt($request);
-            break;
+                break;
 
             case 'add_user_request':
                 $this->processorAddUser($request);
@@ -71,10 +71,6 @@ class MessageProcessor
             
             case 'create_team_request':
                 $this->processorCreateTeamRequest($request);
-                break;
-
-            case 'search_request':
-                $this->processorSearchRequest($request);
                 break;
 
             case 'chat_message':
@@ -112,21 +108,13 @@ class MessageProcessor
             case 'trade_player_request':
                 $this->processorTradePlayers($request);
                 break;
-            
-            case 'weekly_matchup_request':
-                $this->processor_get_weekly_matchup($request);
-                break;
 
-            case 'all_matchups_request':
-                $this->processor_get_all_matchups($request);
+            case 'standings_request':
+                $this->processor_get_matchups($request);
                 break;
 
             case 'team_data_request':
                 $this->processor_get_team_data($request);
-                break;
-        
-            case 'league_standings_request':
-                $this->processor_get_league_standings($request);
                 break;
 
             case 'new_2fa':
@@ -1444,63 +1432,6 @@ class MessageProcessor
         }
     }
 
-   // function getDraftStatus($request){
-     //   $email = $request['email'];
-     //   echo $email;
-     //   $db = connectDB();
-
-     //   echo $email;
-        // Debugging output
-      //  echo "Successfully connected to the the database.\n";
-        
-        /*Take user's email and check their commissioner status and obtain league*/
-      //  try {
-            // Query to find league ID
-        //    $leagueQuery = $db->prepare("SELECT league_id FROM fantasy_leagues WHERE created_by = ?");
-        //    $leagueQuery->bind_param("s", $email);
-            
-        //    if (!$leagueQuery->execute()) {
-          //      echo "League query execution failed: " . $leagueQuery->error;
-        //        $this->response = ['result' => 'false', 'commissioner' => 'false'];
-        //    }
-            
-      //      $leagueQuery->bind_result($leagueId);
-      //      if (!$leagueQuery->fetch() || !$leagueId) {
-                //echo "No league found for the commissioner.";
-              //  $this->response = ['result' => 'false', 'commissioner' => 'false'];
-            //}
-            //$leagueQuery->close();
-    
-            // Query to check draft status
-          //  $draftStatusQuery = $db->prepare("SELECT draft_started, draft_completed FROM fantasy_leagues WHERE league_id = ?");
-           // $draftStatusQuery->bind_param("i", $leagueId);
-            
-           // if (!$draftStatusQuery->execute()) {
-              //  echo "Draft status query execution failed: " . $draftStatusQuery->error;
-            //    $this->response = ['result' => 'false', 'commissioner' => 'false'];
-           // }
-    
-         //   $draftStatusQuery->bind_result($draftStarted, $draftCompleted);
-         //   if (!$draftStatusQuery->fetch()) {
-        //        echo "No draft status found for the league.";
-        //        $this->response = ['result' => 'false', 'commissioner' => 'false'];
-       //     }
-      //      $draftStatusQuery->close();
-            
-            // Determine the draft status
-      //      if ($draftStarted && !$draftCompleted) {
-     //           $this->response = ['result' => 'true'];
-        //    } else {
-          //      $this->response = ['result' => 'false'];
-      //    //  }
-        //} catch (Exception $e) {
-            //echo "An error occurred: " . $e->getMessage();
-          //  $this->response = ['result' => 'false', 'commissioner' => 'false'];
-        //} finally {
-       //     $db->close(); // Ensure the database connection is closed
-      //  }
-    //}
-
     public function getDraftStatus($request){
         if (!isset($request['email']) || !filter_var($request['email'], FILTER_VALIDATE_EMAIL)) {
             error_log("Invalid or missing email address.");
@@ -1592,8 +1523,8 @@ class MessageProcessor
             $db->rollback();
             error_log("An error occurred: " . $e->getMessage());
             $this->response = ['result' => 'false', 'error' => 'An error occurred: ' . $e->getMessage()];
-            error_log("Response being sent: " . json_encode($response));
-            return $response;
+            error_log("Response being sent: " . json_encode($this->response));
+            return $this->response;
         }finally {
             // Close the connection only in the finally block
             $db->close();
@@ -2197,6 +2128,161 @@ class MessageProcessor
             $db->close();
         }
     }
+
+    private function processor_get_matchups($request) {
+        $email = $request['email'];
+
+
+        $db = connectDB();
+        if (!$db) {
+            echo("Database connection failed.");
+            return $this->response = [
+                'type' => 'standings_response',
+                'status' => 'failure',
+                'message' => 'Could not retrieve matchups and standings data.'
+            ];
+        }
+
+        try {
+            // Find user's id number from their email obtained via session info
+            $userQuery = $db->prepare("SELECT user_id FROM users WHERE email = ?");
+            $userQuery->bind_param("s", $email);
+            $userQuery->execute();
+            $userQuery->bind_result($userId);
+    
+            if (!$userQuery->fetch() || !$userId) {
+                throw new Exception("Couldn't find the user's id.");
+            }
+            $userQuery->close();
+    
+            // Find the user's league and team ids using owner/user id
+            $ownerQuery = $db->prepare("SELECT league_id, team_id FROM fantasy_teams WHERE owner_id = ?");
+            $ownerQuery->bind_param("i", $userId);
+            $ownerQuery->execute();
+            $ownerQuery->bind_result($leagueId, $teamId);
+    
+            if (!$ownerQuery->fetch() || !$leagueId || !$teamId) {
+                throw new Exception("Couldn't find a league or team for that owner ID");
+            }
+            $ownerQuery->close();
+
+            $scheduleQuery = $db->prepare("
+                SELECT m.week,
+                    t1.team_name AS team1_name,
+                    t2.team_name AS team2_name,
+                    m.team1_score,
+                    m.team2_score
+                FROM matchups m
+                INNER JOIN fantasy_teams t1 ON m.team1_id = t1.team_id
+                INNER JOIN fantasy_teams t2 ON m.team2_id = t2.team_id
+                WHERE m.league_id = ?
+                ORDER BY m.week ASC");
+
+            $scheduleQuery->bind_param("i", $leagueId);
+            $scheduleQuery->execute();
+            $scheduleResult = $scheduleQuery->get_result();
+
+            $matchupsByWeek = [];
+            while ($row = $scheduleResult->fetch_assoc()) {
+                $week = $row['week'];
+                if (!isset($matchupsByWeek[$week])) {
+                    $matchupsByWeek[$week] = [];
+                }
+                $matchupsByWeek[$week][] = $row;
+            }
+            $scheduleQuery->close();
+
+            $scoredMatchups = [];
+            foreach ($matchupsByWeek as $week => $matchups) {
+                foreach ($matchups as $matchup) {
+                    if ($matchup['team1_score'] > 0 || $matchup['team2_score'] > 0) {
+                        $scoredMatchups[$week][] = $matchup;
+                    }
+                }
+            }
+
+            $standingsQuery = $db->prepare("
+                    SELECT 
+                        s.team_id, 
+                        t.team_name,
+                        s.wins, 
+                        s.losses, 
+                        s.ties,
+                        COALESCE(SUM(wfs.total_points), 0) as total_points
+                    FROM standings s
+                    INNER JOIN fantasy_teams t ON s.team_id = t.team_id
+                    LEFT JOIN weekly_fantasy_scores wfs ON wfs.team_id = s.team_id AND wfs.league_id = s.league_id
+                    WHERE s.league_id = ?
+                    GROUP BY s.team_id, s.league_id, t.team_name, s.wins, s.losses, s.ties
+                    ORDER BY s.wins DESC, total_points DESC");
+
+            $standingsQuery->bind_param("i", $leagueId);
+            $standingsQuery->execute();
+            $standingsResult = $standingsQuery->get_result();
+
+            $standingsData = [];
+            while ($row = $standingsResult->fetch_assoc()) {
+                $standingsData[] = $row;
+            }
+            $standingsQuery->close();
+
+            $playerStatsQuery = $db->prepare("
+                    SELECT p.player_id, p.name AS player_name, n.name AS nba_team_name,
+                        SUM(ps.points) AS total_points,
+                        SUM(ps.rebounds) AS total_rebounds,
+                        SUM(ps.assists) AS total_assists,
+                        SUM(ps.blocks) AS total_blocks,
+                        SUM(ps.steals) AS total_steals
+                    FROM fantasy_team_players ftp
+                    INNER JOIN players p ON ftp.player_id = p.player_id
+                    INNER JOIN player_stats ps ON ps.player_id = p.player_id
+                    INNER JOIN teams n ON ps.team_id = n.team_id
+                    WHERE ftp.team_id = ?
+                    GROUP BY p.player_id, p.name, nba_team_name");
+
+            $playerStatsQuery->bind_param("i", $teamId);
+            $playerStatsQuery->execute();
+            $playerStatsResult = $playerStatsQuery->get_result();
+
+            $playerData = [];
+            while ($row = $playerStatsResult->fetch_assoc()) {
+                /* CALC FANTASY POINTS*/
+                $fantasyPoints = 
+                    ($row['total_points'] * 1) +
+                    ($row['total_rebounds'] * 1.25) +
+                    ($row['total_assists'] * 1.5) +
+                    ($row['total_steals'] * 2) +
+                    ($row['total_blocks'] * 2);
+
+                $row['fantasy_points'] = $fantasyPoints;
+                $playerData[] = $row;
+            }
+            $playerStatsQuery->close();
+
+            return $this->response = [
+                'type' => 'standings_response',
+                'status' => 'success',
+                'data' => [
+                    'matchups'        => $matchupsByWeek,
+                    'scored_matchups' => $scoredMatchups,
+                    'standings'       => $standingsData,
+                    'player_stats'    => $playerData
+                ]
+            ];
+
+        } catch (Exception $e) {
+            error_log($e->getMessage());
+            return $this->response = [
+                'type' => 'standings_response',
+                'status' => 'failure',
+                'message' => 'Could not retrieve matchups and standings data.'
+            ];
+
+        } finally{
+            $db->close();
+        }
+    }
+
     /**
      * Get the response to send back to the client.
      *
@@ -2217,3 +2303,4 @@ class MessageProcessor
         return $this->responseError;
     }
 }
+

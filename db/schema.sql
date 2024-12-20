@@ -118,6 +118,7 @@ CREATE TABLE matchups (
     team2_score INT DEFAULT 0,
     winner_team_id INT, -- references the winning team if known
     match_date DATE,
+    standings_processed TINYINT(1) DEFAULT 0;
     FOREIGN KEY (league_id) REFERENCES fantasy_leagues(league_id),
     FOREIGN KEY (team1_id) REFERENCES fantasy_teams(team_id),
     FOREIGN KEY (team2_id) REFERENCES fantasy_teams(team_id)
