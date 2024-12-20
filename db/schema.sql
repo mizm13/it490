@@ -3,8 +3,8 @@ CREATE DATABASE nba; --db name is work in progress
 USE nba;
 
 -- Create user 'miz' and grant privileges
-CREATE USER 'eait490'@'172.30.17.239' IDENTIFIED BY 'teamfantasy';
-GRANT ALL PRIVILEGES ON nba.* TO 'eait490'@'172.30.17.239';
+CREATE USER 'eait490'@'127.0.0.1' IDENTIFIED BY 'teamfantasy';
+GRANT ALL PRIVILEGES ON nba.* TO 'eait490'@'127.0.0.1';
 
 -- Create the 'users' table
 CREATE TABLE users (
