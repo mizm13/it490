@@ -28,7 +28,7 @@ abstract class PlayerMerchSearch {
 </head>
 
 <body class="bg-gray-100 text-gray-900 min-h-screen">
-    <div class="flex items-center justify-center relative h-screen">
+    <div class="flex items-center justify-center flex flex-col relative h-screen">
     <div class="w-full max-w-md p-6 bg-white rounded-lg shadow-md">
         <h1 class="text-2xl font-bold text-center mb-4">Search NBA Player Merchandise</h1>
 
@@ -64,7 +64,7 @@ abstract class PlayerMerchSearch {
                                                                                              $final_url = $base_url . "?query=" . $formatted_name;
 
                                                                                                              // Display the link
-                                                                                                                             echo "<div class='mt-6'><a href=\"$final_url\" target=\"_blank\" class=\"text-blue-600 hover:underline\">Shop for $player_name Merchandise</a></div>";
+                                                                                                                             echo "<div><div class='flex relative mt-6'><a href=\"$final_url\" target=\"_blank\" class=\"text-blue-600 hover:underline\">Shop for $player_name Merchandise</a></div></div>";
                                                                                                                                          } else {
                                                                                                                                                          echo "<div class='mt-6 text-red-500'>Please enter a valid player name.</div>";
                                                                                                                                                                      }
