@@ -1,20 +1,74 @@
 #!/bin/bash
 
-deploy_qa() {
-    # Check if the required argument (directory) is provided
-    if [ "$#" -ne 1 ]; then
-        echo "Usage: $0 <directory>"
+# URL for the Flask app on deployment server
+FLASK_URL="http://172.233.182.205:5000"
+
+# Function to fetch and display the deployment menu
+fetch_menu() {
+    echo "Fetching deployment menu..."
+    response=$(curl -s "$FLASK_URL/")
+
+    # Check if response contains the expected keys
+    if [[ "$response" == *"options"* && "$response" == *"message"* ]]; then
+        # Display the welcome message
+        message=$(echo "$response" | jq -r '.message')
+        echo "$message"
+
+        # Display the available options
+        echo "Available options:"
+        echo "$response" | jq -r '.options[] | "\(.option)"' | nl -w2 -s") "
+    else
+        echo "Error: Failed to fetch the deployment menu. Response:"
+        echo "$response"
         exit 1
     fi
+}
 
-    DIRECTORY=$1
+update_package() {
+    # Prompt the user for the required fields
+    read -p "Enter the package ID: " package_id
+    read -p "Enter the version number: " version_number
+    read -p "Enter the new status: " status
+    read -p "Enter the bundle type (e.g., frontend, backend, dmz): " bundle_type
 
+    # Validate input
+    if [[ -z "$package_id" || -z "$version_number" || -z "$status" || -z "$bundle_type" ]]; then
+        echo "Error: All fields are required."
+        return 1
+    fi
+
+    data=$(jq -n \
+        --arg id "$package_id" \
+        --arg version "$version_number" \
+        --arg status "$status" \
+        --arg type "$bundle_type" \
+        '{id: $id, version: $version, status: $status, type: $type}')
+
+    UPDATE_URL="$FLASK_URL/update_qa"
+    echo "Updating package..."
+    response=$(/usr/bin/curl -X POST -H "Content-Type: application/json" -d "$data" "$UPDATE_URL")
+
+    # Check the response
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Failed to send the update request."
+        return 1
+    fi
+
+    echo "Server Response:"
+    echo "$response" | jq
+}
+
+upload_package() {
+    # Ask for the directory path
+    read -p "Enter the directory path to package and upload: " DIRECTORY
+
+    # Validate the directory
     if [ ! -d "$DIRECTORY" ]; then
         echo "Error: Directory '$DIRECTORY' does not exist."
         exit 1
     fi
 
-    # Check for .ini file inside the directory
+    # Check for .ini file
     INI_FILE="$DIRECTORY/package.ini"
     if [ ! -f "$INI_FILE" ]; then
         echo "Error: .ini file 'package.ini' not found in the directory '$DIRECTORY'."
@@ -23,34 +77,19 @@ deploy_qa() {
 
     echo "Found .ini file: $INI_FILE"
 
+    # Extract values from the .ini file
     PACKAGE_NAME=$(grep -E "^name[ ]*=" "$INI_FILE" | awk -F= '{print $2}' | xargs)
     PACKAGE_TYPE=$(grep -E "^type[ ]*=" "$INI_FILE" | awk -F= '{print $2}' | xargs)
     PACKAGE_ID=$(grep -E "^id[ ]*=" "$INI_FILE" | awk -F= '{print $2}' | xargs)
     PACKAGE_DESCRIPTION=$(grep -E "^description[ ]*=" "$INI_FILE" | awk -F= '{print $2}' | xargs)
-    PROD=$(grep -E "^PROD[ ]*=" "$INI_FILE" | awk -F= '{print $2}' | xargs)
 
-    # Clean up the PROD variable remove square brackets and trim spaces
-    PROD=$(echo "$PROD" | tr -d '[]' | xargs)
-    PROD=$(echo "$PROD" | xargs)
-
-    # Debugging: Echo values to ensure they're captured correctly
-    echo "Package Name: $PACKAGE_NAME"
-    echo "Package Type: $PACKAGE_TYPE"
-    echo "Package Description: $PACKAGE_DESCRIPTION"
-    echo "Production: $PROD"
-
-    if [ -z "$PACKAGE_NAME" ]; then
-        echo "Error: Missing required values in the .ini file (name or version)."
+    # Validate required fields
+    if [ -z "$PACKAGE_NAME" ] || [ -z "$PACKAGE_TYPE" ] || [ -z "$PACKAGE_ID" ]; then
+        echo "Error: Missing required values in the .ini file (name, type, or id)."
         exit 1
     fi
 
-    # Check to see if directory name matches the $PACKAGE_TYPE_$PACKAGE_NAME
-    if [ "$DIRECTORY" != "$PACKAGE_TYPE"_"$PACKAGE_NAME" ]; then
-        echo "Error: Directory name does not match the package name and type specified in the .ini file."
-        exit 1
-    fi
-
-    # Create a tarball including the .ini file
+    # Create tarball
     TARBALL="${DIRECTORY%/}.tar.gz"
     tar -czf "$TARBALL" "$DIRECTORY"
     if [ $? -ne 0 ]; then
@@ -60,202 +99,126 @@ deploy_qa() {
 
     echo "Directory compressed to: $TARBALL"
 
-    # Upload the tarball using curl
-    echo "Deploying package: $TARBALL to QA"
-    RESPONSE=$(/usr/bin/curl -F "file=@$TARBALL" -F "name=$PACKAGE_NAME" -F "type=$PACKAGE_TYPE" -F "id=$PACKAGE_ID" -F "description=$PACKAGE_DESCRIPTION" http://172.233.182.205:5000/upload 2>/dev/null)
+    # Upload tarball
+    echo "Uploading package: $TARBALL"
+    UPLOAD_URL="$FLASK_URL/upload"
+    RESPONSE=$(/usr/bin/curl -F "file=@$TARBALL" \
+                     -F "name=$PACKAGE_NAME" \
+                     -F "type=$PACKAGE_TYPE" \
+                     -F "id=$PACKAGE_ID" \
+                     -F "description=$PACKAGE_DESCRIPTION" \
+                     "$UPLOAD_URL")
+
+    echo "Server Response:"
+    echo "$RESPONSE"
+}
+
+# Function to handle "Deploy to QA"
+deploy_to_qa() {
+    # Ask for the server name
+    read -p "Enter the QA server name: " SERVER_NAME
+
+    DEPLOY_URL="$FLASK_URL/deploy/qa/$SERVER_NAME"
+    echo "Deploying to QA server: $SERVER_NAME..."
+    RESPONSE=$(/usr/bin/curl -X POST "$DEPLOY_URL")
 
     if [ $? -ne 0 ]; then
-        echo "Error: Failed to upload the tarball."
+        echo "Error: Deployment request failed."
         exit 1
     fi
 
     echo "Server Response:"
     echo "$RESPONSE"
-
-    if ! echo "$RESPONSE" | grep -q '"success": true'; then
-        echo "Error: Upload failed. Please check the server response for more details."
-        exit 1
-    fi
-
-    echo "Package uploaded successfully and QA passed."
 }
 
-deploy_prod() {
-    echo "Deploying latest package to production..."
-    if [ "$#" -ne 1 ]; then
-        echo "Usage: $0 <type>"
-        exit 1
-    fi
-    if [ "$1" != "frontend00" ] && [ "$1" != "frontend01" ] && [ "$1" != "backend00" ] && [ "$1" != "backend01" ] && [ "$1" != "dmz00" ]; then
-        echo "Error: Invalid type specified. Valid types are: frontend00/frontend01, backend00/backend01, dmz00/dmz01."
-        exit 1
+deploy_to_prod() {
+    # Prompt the user for the required inputs
+    read -p "Enter the production server name (e.g., frontend00, frontend01, backend00, dmz00): " server_type
+    read -p "Enter the server type (e.g., frontend, backend, dmz): " table_name
+
+    # Validate inputs
+    if [[ -z "$server_type" || -z "$table_name" ]]; then
+        echo "Error: Both server type and table name are required."
+        return 1
     fi
 
-    # Remove the numbers from the argument. Example: frontend00 and frontend01 will be frontend
-    TABLE=$(echo "$1" | sed 's/[0-9]*//g')
+    DEPLOY_URL="$FLASK_URL/deploy/prod/$server_type"
+    data="table=$table_name"
 
-    echo "Deploying package..."
-    RESPONSE=$(/usr/bin/curl -F "table=$TABLE" -X POST "http://172.233.182.205:5000/deploy/prod/$1" 2>/dev/null)
+    echo "Deploying to production server type: $server_type..."
+    response=$(curl -s -X POST -H "Content-Type: application/x-www-form-urlencoded" -d "$data" "$DEPLOY_URL")
+
+    # Check the response
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Deployment request failed."
+        return 1
+    fi
+
+    echo "Server Response:"
+    echo "$response" | jq
+}
+
+
+# Function to install the package
+install_package() {
+    # Ask for server name
+    read -p "Enter the server name to install the package: " SERVER_NAME
+
+    INSTALL_URL="$FLASK_URL/install/$SERVER_NAME"
+    echo "Installing package with ID: $PACKAGE_ID..."
+    RESPONSE=$(/usr/bin/curl -X POST "$INSTALL_URL")
 
     if [ $? -ne 0 ]; then
-        echo "Error: Failed to upload the tarball to $i."
+        echo "Error: Installation request failed."
         exit 1
     fi
 
     echo "Server Response:"
     echo "$RESPONSE"
-
-    if ! echo "$RESPONSE" | grep -q '"success": true'; then
-        echo "Error: Upload failed. Please check the server response for more details."
-        exit 1
-    fi
-
-    echo "Package uploaded successfully to $1."
-
-    echo "Deployment to production completed successfully."
 }
 
-# Rollback the deployment to a previous version that passed. Must pass id as an argument
-rollback() {
-    echo "Rolling back to a previous version..."
-    # Check if the required serverType and id arguments are provided
-    if [ "$#" -ne 3 ]; then
-        echo "Usage: $0 -r <serverType> <id>"
-        echo "Arguments: $@"
+# Function to process menu selection
+select_option() {
+    read -p "Enter the number corresponding to your choice: " choice_number
+
+    # Validate input
+    if ! [[ "$choice_number" =~ ^[0-9]+$ ]]; then
+        echo "Invalid input. Please enter a numeric value."
         exit 1
     fi
 
-    if [ "$2" != "frontend00" ] && [ "$2" != "frontend01" ] && [ "$2" != "backend00" ] && [ "$2" != "backend01" ] && [ "$2" != "dmz00" ]; then
-        echo "Error: Invalid type specified. Valid types are: frontend00/frontend01, backend00/backend01, dmz00/dmz01."
+    # Fetch the selected option's details
+    total_options=$(echo "$response" | jq -r '.options | length')
+    if (( choice_number < 1 || choice_number > total_options )); then
+        echo "Invalid choice. Please select a valid option number."
         exit 1
     fi
 
-    ID=$3
+    selected_option=$(echo "$response" | jq -r ".options[$((choice_number - 1))]")
+    option_name=$(echo "$selected_option" | jq -r '.option')
+    url=$(echo "$selected_option" | jq -r '.url')
 
-    RESPONSE=$(/usr/bin/curl -F "id=$ID" -X POST "http://172.233.182.205:5000/rollback/$2" 2>/dev/null)
+    echo "You selected: $option_name"
 
-    if [ $? -ne 0 ]; then
-        echo "Error: Failed to rollback the deployment."
-        exit 1
+    if [[ "$url" == "/upload" ]]; then
+        upload_package
+    elif [[ "$url" == "/deploy/qa" ]]; then
+        deploy_to_qa
+    elif [[ "$url" == "/install" ]]; then
+        install_package
+    elif [[ "$url" == "/update_qa" ]]; then
+        update_package
+    elif [[ "$url" == "/deploy/prod" ]]; then
+        deploy_to_prod
+    elif [[ "$url" == "/rollback" ]]; then
+        echo "Rollback is not yet implemented."
+        echo "Oh well...."
+    else
+        echo "Unsupported option."
     fi
-
-    echo "Server Response:"
-    echo "$RESPONSE"
-
-    if ! echo "$RESPONSE" | grep -q '"success": true'; then
-        echo "Error: Rollback failed. Please check the server response for more details."
-        exit 1
-    fi
-
-    echo "Rollback completed successfully."
 }
-
-
-# Test package test. Dry run to test the deployment
-deploy_test() {
-    echo "Testing deployment parameters..."
-    # Check if the required argument (directory) is provided
-    if [ "$#" -ne 1 ]; then
-        echo "Usage: $0 <directory>"
-        exit 1
-    fi
-
-    DIRECTORY=$1
-
-    if [ ! -d "$DIRECTORY" ]; then
-        echo "Error: Directory '$DIRECTORY' does not exist."
-        exit 1
-    fi
-
-    # Check for .ini file inside the directory
-    INI_FILE="$DIRECTORY/package.ini"
-    if [ ! -f "$INI_FILE" ]; then
-        echo "Error: .ini file 'package.ini' not found in the directory '$DIRECTORY'."
-        exit 1
-    fi
-
-    echo "Found .ini file: $INI_FILE"
-
-    PACKAGE_NAME=$(grep -E "^name[ ]*=" "$INI_FILE" | awk -F= '{print $2}' | xargs)
-    PACKAGE_TYPE=$(grep -E "^type[ ]*=" "$INI_FILE" | awk -F= '{print $2}' | xargs)
-    PACKAGE_ID=$(grep -E "^id[ ]*=" "$INI_FILE" | awk -F= '{print $2}' | xargs)
-    PACKAGE_DESCRIPTION=$(grep -E "^description[ ]*=" "$INI_FILE" | awk -F= '{print $2}' | xargs)
-    PROD=$(grep -E "^PROD[ ]*=" "$INI_FILE" | awk -F= '{print $2}' | xargs)
-
-    # Clean up the PROD variable remove square brackets and trim spaces
-    PROD=$(echo "$PROD" | tr -d '[]' | xargs)
-    PROD=$(echo "$PROD" | xargs)
-
-    # Debugging: Echo values to ensure they're captured correctly
-    echo "Package Name: $PACKAGE_NAME"
-    echo "Package Type: $PACKAGE_TYPE"
-    echo "Package Description: $PACKAGE_DESCRIPTION"
-    echo "Production: $PROD"
-
-    if [ -z "$PACKAGE_NAME" ]; then
-        echo "Error: Missing required values in the .ini file (name or version)."
-        exit 1
-    fi
-
-    # Check to see if directory name matches the $PACKAGE_TYPE_$PACKAGE_NAME
-    if [ "$DIRECTORY" != "$PACKAGE_TYPE"_"$PACKAGE_NAME" ]; then
-        echo "Error: Directory name does not match the package name and type specified in the .ini file."
-        exit 1
-    fi
-
-    # Create a tarball including the .ini file
-    TARBALL="${DIRECTORY%/}.tar.gz"
-    tar -czf "$TARBALL" "$DIRECTORY"
-    if [ $? -ne 0 ]; then
-        echo "Error: Failed to compress the directory."
-        exit 1
-    fi
-
-    echo "Test deployment parameters passed."
-}
-
-cleanup() {
-    rm "$TARBALL" 2>/dev/null
-}
-
-# Clean up space
-trap cleanup EXIT
-
 # Main
-
-if [ "$#" -eq 0 ]; then
-    echo "Usage: $0 [-t] [-q] [-p] [-r] <directory|type>"
-    exit 1
-fi
-
-if [[ "$1" == -* ]]; then
-    while getopts ":tqpr" opt; do
-        case $opt in
-            t)
-                deploy_test "${@: -1}"
-                ;;
-            q)
-                deploy_qa "${@: -1}"
-                ;;
-            p)
-                deploy_prod "${@: -1}"
-                ;;
-            r)
-                rollback "$@"
-                ;;
-            \?)
-                echo "Invalid option: -$OPTARG"
-                exit 1
-                ;;
-            :)
-                echo "Option -$OPTARG requires an argument."
-                exit 1
-                ;;
-        esac
-    done
-else
-    echo "Usage: $0 [-t] [-q] [-p] [-r] <directory>"
-    exit 1
-fi
-
-exit 0
+while true; do
+    fetch_menu
+    select_option
+done

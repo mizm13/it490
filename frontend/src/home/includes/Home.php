@@ -56,16 +56,6 @@ abstract class Home {
         justify-center overflow-hidden bg-slate-200 px-12 py-6 sm:py-32 lg:py-14">
             <h1 class="text-lg lg:text-4xl font-bold text-center"> User <?php echo $uname; ?>'s HOME PAGE</h1>
             <div class="text-lg lg:text-3xl space-y-6 py-8 leading-7 text-gray-600">
-            <table class="table-auto">
-                <thead>
-
-                    <tr >
-                    <th class="px-12"></th>
-                    <th class="px-12 font-extrabold underline underline-offset-3">Your Player's Stats</th>
-                    <th class="px-12"></th>    
-                </thead>
-                <tbody></tbody>
-            </table>
             </div>
         </div>
             <?php

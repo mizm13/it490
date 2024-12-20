@@ -37,8 +37,8 @@ public static function displayNav()
               ?>
           <a class="text-gray-500 hover:text-gray-700 px-6 mx-8 py-6 rounded-md text-sm font-medium" href="/draft">Draft</a>
           <a class="text-gray-500 hover:text-gray-700 px-6 py-6 rounded-md text-sm font-medium" href="/commissioner">Commissioner Portal</a>
-          <a class="text-gray-500 hover:text-gray-700 px-6 py-6 rounded-md text-sm font-medium" href="/myteam">Team Management</a>
-          <a class="text-gray-500 hover:text-gray-700 px-6 py-6 rounded-md text-sm font-medium" href="/matchups">Matchups</a>
+          <a class="text-gray-500 hover:text-gray-700 px-6 py-6 rounded-md text-sm font-medium" href="/nbamerch">Rep Your Players</a>
+          <a class="text-gray-500 hover:text-gray-700 px-6 py-6 rounded-md text-sm font-medium" href="/matchups">Matchups and Standings</a>
           <a class="text-gray-500 hover:text-gray-700 px-6 py-6 rounded-md text-sm font-medium" href="/leagues">Create/Join League</a>
           <a class="text-gray-500 hover:text-gray-700 px-6 py-6 rounded-md text-sm font-medium" href="/logout">Logout</a>
 
@@ -60,27 +60,23 @@ public static function displayNav()
             <?php } ?>
           </div>
       </div>
-      <div class="-mr-2 flex items-center sm:hidden">
-        <button type="button" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none focus:bg-gray-700 focus:text-white" aria-controls="mobile-menu" aria-expanded="false">
-          <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
-            <path class="inline-flex" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
-          </svg>
-        </button>
-      </div>
     </div>
   </div>
 
-  <!-- Mobile Menu
-  <div class="hidden" id="mobile-menu">
+
+  <div class="sm:hidden" id="mobile-menu">
     <div class="pt-2 pb-3 space-y-1">
-      <a class="text-gray-500 hover:text-gray-700 block px-3 py-2 rounded-md text-base font-medium" href="/landing">Main</a>
-      <?php // if ($session) { ?>
+      <a class="text-gray-500 hover:text-gray-700 block px-3 py-2 rounded-md text-base font-medium" href="/home">Home</a>
+      <?php if ($session) { ?>
         <a class="text-gray-500 hover:text-gray-700 block px-3 py-2 rounded-md text-base font-medium" href="/draft">Draft</a>
-        <a class="text-gray-500 hover:text-gray-700 block px-3 py-2 rounded-md text-base font-medium" href="/players">Player Stats</a>
-        <a class="text-gray-500 hover:text-gray-700 block px-3 py-2 rounded-md text-base font-medium" href="/myteam">Team Management</a>
-      <?php // } ?>
+        <a class="text-gray-500 hover:text-gray-700 block px-3 py-2 rounded-md text-base font-medium" href="/commissioner">Commissioner Portal</a>
+          <a class="text-gray-500 hover:text-gray-700 block px-3 py-2 rounded-md text-base font-medium" href="/nbamerch">Rep Your Players</a>
+          <a class="text-gray-500 hover:text-gray-700 block px-3 py-2 rounded-md text-base font-medium" href="/matchups">Matchups and Standings</a>
+          <a class="text-gray-500 hover:text-gray-700 block px-3 py-2 rounded-md text-base font-medium" href="/leagues">Create/Join League</a>
+          <a class="text-gray-500 hover:text-gray-700 block px-3 py-2 rounded-md text-base font-medium" href="/logout">Logout</a>
+      <?php } ?>
     </div>
-  </div> -->
+  </div> 
 </nav>
     <?php
 }

@@ -1,11 +1,34 @@
+<?php
+
+namespace nba\src\nbamerch\includes;
+
+abstract class PlayerMerchSearch {
+    public static function displayMerchSearch() {
+?>
+
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NBA Player Search</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <?php echo \nba\src\lib\components\Head::displayHead();
+        echo \nba\src\lib\components\Nav::displayNav();
+        
+        // Check if user is logged in
+        $session = \nba\src\lib\SessionHandler::getSession();
+        if (!$session) {
+            error_log("User not logged in. Redirecting to login page.");
+            header('Location: /login');
+            exit();
+        } else {
+            $email = htmlspecialchars($session->getEmail(), ENT_QUOTES, 'UTF-8');
+        }
+        ?>
 </head>
-<body class="bg-gray-100 text-gray-900 min-h-screen flex items-center justify-center">
+
+<body class="bg-gray-100 text-gray-900 min-h-screen">
+    <div class="flex items-center justify-center relative h-screen">
     <div class="w-full max-w-md p-6 bg-white rounded-lg shadow-md">
         <h1 class="text-2xl font-bold text-center mb-4">Search NBA Player Merchandise</h1>
 
@@ -27,6 +50,7 @@
                 Search
             </button>
         </form>
+    </div>
 
         <?php
         // Check if player is set
@@ -49,5 +73,9 @@
                                                                                                                                                                                          </div>
                                                                                                                                                                                          </body>
                                                                                                                                                                                          </html>
+
+                                                                                                                                                                                         <?php
+                                                                                                                                                                                         }
+}
 
 

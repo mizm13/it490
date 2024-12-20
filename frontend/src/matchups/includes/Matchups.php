@@ -43,6 +43,7 @@ abstract class Matchups {
                 $matchups = $response['data']['matchups'] ?? [];
                 $scoredMatchups = $response['data']['scored_matchups'] ?? [];
                 $standingsData = $response['data']['standings'] ?? [];
+                $playerData = $response['data']['player_stats'] ?? [];
                 ?>
 
                 <div class="container mx-auto p-4">
@@ -75,6 +76,41 @@ abstract class Matchups {
                         <?php endforeach; ?>
                     <?php else: ?>
                         <p>No matchups found.</p>
+                    <?php endif; ?>
+
+                    <h2 class="text-2xl font-semibold mb-4">Your Team's Stats</h2>
+                    <?php if (!empty($playerData)): ?>
+                    <table class="min-w-full bg-white shadow-md rounded">
+                        <thead>
+                            <tr>
+                                <th class="py-2 px-4 bg-gray-200 font-semibold text-left">Player Name</th>
+                                <th class="py-2 px-4 bg-gray-200 font-semibold text-left">NBA Team</th>
+                                <th class="py-2 px-4 bg-gray-200 font-semibold text-left">Points</th>
+                                <th class="py-2 px-4 bg-gray-200 font-semibold text-left">Rebounds</th>
+                                <th class="py-2 px-4 bg-gray-200 font-semibold text-left">Assists</th>
+                                <th class="py-2 px-4 bg-gray-200 font-semibold text-left">Steals</th>
+                                <th class="py-2 px-4 bg-gray-200 font-semibold text-left">Blocks</th>
+                                <th class="py-2 px-4 bg-gray-200 font-semibold text-left">Fantasy Points</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($playerData as $p): ?>
+                            <tr class="border-b last:border-none">
+                                <td class="py-2 px-4"><?php echo htmlspecialchars($p['player_name']); ?></td>
+                                <td class="py-2 px-4"><?php echo htmlspecialchars($p['nba_team_name']); ?></td>
+                                <td class="py-2 px-4"><?php echo htmlspecialchars($p['total_points']); ?></td>
+                                <td class="py-2 px-4"><?php echo htmlspecialchars($p['total_rebounds']); ?></td>
+                                <td class="py-2 px-4"><?php echo htmlspecialchars($p['total_assists']); ?></td>
+                                <td class="py-2 px-4"><?php echo htmlspecialchars($p['total_steals']); ?></td>
+                                <td class="py-2 px-4"><?php echo htmlspecialchars($p['total_blocks']); ?></td>
+                                <td class="py-2 px-4 font-semibold"><?php echo htmlspecialchars($p['fantasy_points']); ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+
+                    <?php else: ?>
+                        <p>No team data found.</p>
                     <?php endif; ?>
 
                     <h2 class="text-2xl font-semibold mb-4">League Standings</h2>
