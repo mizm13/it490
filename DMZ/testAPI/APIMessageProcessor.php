@@ -370,7 +370,6 @@ private function processAPIGameDataRequest($request) {
     }
 
     // Close the statement and connection
-    $stmt->close();
     $conn->close();
 }
 

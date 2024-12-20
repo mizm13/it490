@@ -52,7 +52,7 @@ abstract class Matchups {
                     <h2 class="text-2xl font-semibold mb-4">Full Matchup Schedule</h2>
                     <?php if (!empty($matchups)): ?>
                         <?php foreach ($matchups as $week => $weekMatchups): ?>
-                            <h3 class="text-xl font-semibold mb-2">Week <?php echo htmlspecialchars($week); ?></h3>
+                            <h3 class="text-lg font-semibold mb-2">Week <?php echo htmlspecialchars($week); ?></h3>
                             <table class="min-w-full bg-white mb-6 shadow-md rounded">
                                 <thead>
                                     <tr>
@@ -78,9 +78,9 @@ abstract class Matchups {
                         <p>No matchups found.</p>
                     <?php endif; ?>
 
-                    <h2 class="text-2xl font-semibold mb-4">Your Team's Stats</h2>
+                    <h2 class="text-2xl font-semibold pt-2 mb-4">Your Team's Stats</h2>
                     <?php if (!empty($playerData)): ?>
-                    <table class="min-w-full bg-white shadow-md rounded">
+                    <table class="min-w-full bg-white shadow-md rounded mb-10">
                         <thead>
                             <tr>
                                 <th class="py-2 px-4 bg-gray-200 font-semibold text-left">Player Name</th>
@@ -113,7 +113,7 @@ abstract class Matchups {
                         <p>No team data found.</p>
                     <?php endif; ?>
 
-                    <h2 class="text-2xl font-semibold mb-4">League Standings</h2>
+                    <h2 class="text-2xl font-semibold py-10 mb-4">League Standings</h2>
                     <?php if (!empty($standingsData)): ?>
                     <table class="min-w-full bg-white shadow-md rounded">
                         <thead>
